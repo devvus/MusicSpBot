@@ -200,8 +200,12 @@ class TgCall(PyTgCalls):
     async def boot(self) -> None:
         PyTgCallsSession.notice_displayed = True
         for ub in userbot.clients:
-            client = PyTgCalls(ub, cache_duration=100)
-            await client.start()
-            self.clients.append(client)
-            await self.decorators(client)
-        logger.info("PyTgCalls client(s) started.")
+            try:
+                client = PyTgCalls(ub, cache_duration=100)
+                await client.start()
+                self.clients.append(client)
+                await self.decorators(client)
+            except Exception as e:
+                logger.error(f"PyTgCalls failed to start for an assistant: {e}")
+        if self.clients:
+            logger.info("PyTgCalls client(s) started.")

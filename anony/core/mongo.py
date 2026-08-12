@@ -142,6 +142,9 @@ class MongoDB:
     async def get_assistant(self, chat_id: int):
         from anony import anon
 
+        if not anon.clients:
+            return None
+
         if chat_id not in self.assistant:
             doc = await self.assistantdb.find_one({"_id": chat_id})
             num = doc["num"] if doc else None
@@ -150,18 +153,25 @@ class MongoDB:
                 num = await self.set_assistant(chat_id)
             self.assistant[chat_id] = num
 
-        return anon.clients[self.assistant[chat_id] - 1]
+        try:
+            return anon.clients[self.assistant[chat_id] - 1]
+        except (IndexError, KeyError):
+            return anon.clients[0]
 
     async def get_client(self, chat_id: int):
+        if not userbot.clients:
+            return None
+
         if chat_id not in self.assistant:
             await self.get_assistant(chat_id)
 
-        num = self.assistant[chat_id]
+        num = self.assistant.get(chat_id, 1)
         if num > len(userbot.clients):
             num = await self.set_assistant(chat_id)
             self.assistant[chat_id] = num
 
-        return {1: userbot.one, 2: userbot.two, 3: userbot.three}.get(num)
+        client = {1: userbot.one, 2: userbot.two, 3: userbot.three}.get(num)
+        return client if client and client.is_connected else userbot.clients[0]
 
     # BLACKLIST METHODS
     async def add_blacklist(self, chat_id: int) -> None:

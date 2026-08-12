@@ -24,7 +24,6 @@ DOWNLOAD_DIR = "downloads"
 
 async def download_song(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    # Using .mp3 as the API seems to return mp3 based on my test
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
@@ -32,29 +31,31 @@ async def download_song(video_id: str) -> str:
     if not API_URL:
         return None
 
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    logger.info(f"Downloading audio for: {video_id} via custom API")
+
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
             async with session.get(
                 f"{API_URL}/download",
-                params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                params={"url": url, "type": "audio", "api_key": API_KEY},
                 timeout=aiohttp.ClientTimeout(total=600)
             ) as resp:
                 if resp.status != 200:
-                    logger.warning(f"Custom API download returned status {resp.status}")
+                    logger.warning(f"Custom API download returned status {resp.status} for {video_id}")
                     return None
                 with open(file_path, "wb") as f:
                     async for chunk in resp.content.iter_chunked(131072):
                         f.write(chunk)
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            logger.info(f"Successfully downloaded audio: {video_id}")
             return file_path
         return None
     except Exception as e:
-        logger.warning(f"Custom API audio download failed: {e}")
+        logger.warning(f"Custom API audio download failed for {video_id}: {e}")
         if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            try: os.remove(file_path)
+            except: pass
         return None
 
 async def download_video(video_id: str) -> str:
@@ -66,28 +67,31 @@ async def download_video(video_id: str) -> str:
     if not API_URL:
         return None
 
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    logger.info(f"Downloading video for: {video_id} via custom API")
+
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
             async with session.get(
                 f"{API_URL}/download",
-                params={"url": video_id, "type": "video", "api_key": API_KEY},
+                params={"url": url, "type": "video", "api_key": API_KEY},
                 timeout=aiohttp.ClientTimeout(total=900)
             ) as resp:
                 if resp.status != 200:
+                    logger.warning(f"Custom API video download returned status {resp.status} for {video_id}")
                     return None
                 with open(file_path, "wb") as f:
                     async for chunk in resp.content.iter_chunked(131072):
                         f.write(chunk)
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            logger.info(f"Successfully downloaded video: {video_id}")
             return file_path
         return None
     except Exception as e:
-        logger.warning(f"Custom API video download failed: {e}")
+        logger.warning(f"Custom API video download failed for {video_id}: {e}")
         if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            try: os.remove(file_path)
+            except: pass
         return None
 
 class YouTube:
@@ -119,7 +123,7 @@ class YouTube:
             return None
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                 async with session.get(
                     f"{API_URL}/search",
                     params={"q": query, "api_key": API_KEY},
@@ -127,11 +131,13 @@ class YouTube:
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        # The API returns "results" (plural)
+                        logger.info(f"Custom API search result for '{query}': {data}")
                         if data and "results" in data and data["results"]:
                             return data["results"][0]
+                    else:
+                        logger.warning(f"Custom API search returned status {resp.status} for '{query}'")
         except Exception as e:
-            logger.warning(f"Custom YouTube API search failed: {e}")
+            logger.warning(f"Custom YouTube API search failed for '{query}': {e}")
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:

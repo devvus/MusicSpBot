@@ -17,16 +17,15 @@ def checkUB(play):
             return await m.reply_text(m.lang["play_user_invalid"])
 
         chat_id = m.chat.id
-        if m.chat.type != enums.ChatType.SUPERGROUP:
-            await m.reply_text(m.lang["play_chat_invalid"])
-            return await app.leave_chat(chat_id)
+        if m.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            return await m.reply_text("🌸 I'm so sorry, but you can only play music in a **Group Chat**! Please add me to a group to start the party! ✨")
 
         if not m.reply_to_message and (
             len(m.command) < 2 or (len(m.command) == 2 and m.command[1] == "-f")
         ):
             return await m.reply_text(m.lang["play_usage"])
 
-        if len(queue.get_queue(chat_id)) >= config.QUEUE_LIMIT:
+        if len(queue.get_queue(chat_id)) >= config.QUEUE_LIMIT and m.from_user.id not in app.sudoers:
             return await m.reply_text(m.lang["play_queue_full"].format(config.QUEUE_LIMIT))
 
         force = m.command[0].endswith("force") or (
@@ -50,6 +49,8 @@ def checkUB(play):
 
         if chat_id not in db.active_calls:
             client = await db.get_client(chat_id)
+            if not client:
+                return await m.reply_text("🌸 I'm so sorry, but my assistant is currently offline. Please check back in a few minutes! ✨")
             try:
                 member = await app.get_chat_member(chat_id, client.id)
                 if member.status in [
