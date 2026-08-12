@@ -30,12 +30,14 @@ async def download_song(video_id: str) -> str:
     if not API_URL:
         return None
 
+    url = f"https://www.youtube.com/watch?v={video_id}"
+
     for attempt in range(3):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                 async with session.get(
                     f"{API_URL}/download",
-                    params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                    params={"url": url, "type": "audio", "api_key": API_KEY},
                     timeout=aiohttp.ClientTimeout(total=600)
                 ) as resp:
                     if resp.status != 200:
@@ -69,12 +71,14 @@ async def download_video(video_id: str) -> str:
     if not API_URL:
         return None
 
+    url = f"https://www.youtube.com/watch?v={video_id}"
+
     for attempt in range(2):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                 async with session.get(
                     f"{API_URL}/download",
-                    params={"url": video_id, "type": "video", "api_key": API_KEY},
+                    params={"url": url, "type": "video", "api_key": API_KEY},
                     timeout=aiohttp.ClientTimeout(total=900)
                 ) as resp:
                     if resp.status != 200:
