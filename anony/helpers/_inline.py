@@ -44,6 +44,14 @@ class Inline:
                     self.ikb(text="▢", callback_data=f"controls stop {chat_id}"),
                 ]
             )
+            keyboard.append(
+                [
+                    self.ikb(
+                        text="🎁 CLAIM DAILY REWARD",
+                        url=f"https://t.me/{app.username}?start=reward",
+                    )
+                ]
+            )
         return self.ikm(keyboard)
 
     def help_markup(
