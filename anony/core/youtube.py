@@ -24,57 +24,38 @@ DOWNLOAD_DIR = "downloads"
 
 async def download_song(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    # Using .mp3 as the API seems to return mp3 based on my test
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    
-    # Try Custom API First
-    if API_URL:
-        logger.info(f"Attempting Custom API download for: {video_id}")
-        try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": url, "type": "audio", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=600)
-                ) as resp:
-                    if resp.status == 200:
-                        with open(file_path, "wb") as f:
-                            async for chunk in resp.content.iter_chunked(131072):
-                                f.write(chunk)
-                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                            logger.info(f"Custom API download successful: {video_id}")
-                            return file_path
-                    else:
-                        logger.warning(f"Custom API returned status {resp.status} for {video_id}")
-        except Exception as e:
-            logger.warning(f"Custom API failed for {video_id}: {e}")
+    if not API_URL:
+        return None
 
-    # Native Fallback (yt-dlp)
-    logger.info(f"Using Native Fallback for: {video_id}")
     try:
-        import yt_dlp
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": file_path,
-            "quiet": True,
-            "no_warnings": True,
-            "default_search": "ytsearch",
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
-        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=600)
+            ) as resp:
+                if resp.status != 200:
+                    logger.warning(f"Custom API download returned status {resp.status}")
+                    return None
+                with open(file_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(131072):
+                        f.write(chunk)
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            logger.info(f"Native download successful: {video_id}")
             return file_path
+        return None
     except Exception as e:
-        logger.error(f"Native download failed for {video_id}: {e}")
-        
-    return None
+        logger.warning(f"Custom API audio download failed: {e}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        return None
 
 async def download_video(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -82,50 +63,32 @@ async def download_video(video_id: str) -> str:
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
+    if not API_URL:
+        return None
 
-    # Try Custom API First
-    if API_URL:
-        logger.info(f"Attempting Custom API video download for: {video_id}")
-        try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": url, "type": "video", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=900)
-                ) as resp:
-                    if resp.status == 200:
-                        with open(file_path, "wb") as f:
-                            async for chunk in resp.content.iter_chunked(131072):
-                                f.write(chunk)
-                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                            logger.info(f"Custom API video download successful: {video_id}")
-                            return file_path
-                    else:
-                        logger.warning(f"Custom API returned status {resp.status} for {video_id}")
-        except Exception as e:
-            logger.warning(f"Custom API video failed for {video_id}: {e}")
-
-    # Native Fallback (yt-dlp)
-    logger.info(f"Using Native Fallback for video: {video_id}")
     try:
-        import yt_dlp
-        ydl_opts = {
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "outtmpl": file_path,
-            "quiet": True,
-            "no_warnings": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
-        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "video", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=900)
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                with open(file_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(131072):
+                        f.write(chunk)
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            logger.info(f"Native video download successful: {video_id}")
             return file_path
+        return None
     except Exception as e:
-        logger.error(f"Native video download failed for {video_id}: {e}")
-
-    return None
+        logger.warning(f"Custom API video download failed: {e}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        return None
 
 class YouTube:
     def __init__(self):
@@ -156,7 +119,7 @@ class YouTube:
             return None
         
         try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{API_URL}/search",
                     params={"q": query, "api_key": API_KEY},
@@ -164,20 +127,11 @@ class YouTube:
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        # Explicit Debug Logging for Railway
-                        logger.info(f"DEBUG: Custom API Raw Search JSON: {data}")
-                        
+                        # The API returns "results" (plural)
                         if data and "results" in data and data["results"]:
-                            res = data["results"][0]
-                            # Validate required keys
-                            if res.get("id") or res.get("url"):
-                                return res
-                            else:
-                                logger.warning(f"DEBUG: Custom API result missing ID/URL for '{query}'")
-                    else:
-                        logger.warning(f"DEBUG: Custom API search status {resp.status} for '{query}'")
+                            return data["results"][0]
         except Exception as e:
-            logger.error(f"DEBUG: Custom API Search Exception for '{query}': {e}")
+            logger.warning(f"Custom YouTube API search failed: {e}")
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
@@ -255,7 +209,7 @@ class YouTube:
         return tracks
 
     async def download(self, video_id: str, video: bool = False) -> str | None:
-        # Use custom API logic for downloading
+        # Use custom API downloader logic as requested
         if video:
             return await download_video(video_id)
         else:
