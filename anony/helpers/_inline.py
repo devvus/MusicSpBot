@@ -1,6 +1,6 @@
-# Copyright (c) 2025 AnonymousX1025
-# Licensed under the MIT License.
-# This file is part of AnonXMusic
+# DevuxMitsu - The Love Hashira Music Bot
+# Premium Telegram Music Streaming Engine
+# Inspired by Mitsuri Kanroji 🌸🌺
 
 
 from pyrogram import types
@@ -148,16 +148,7 @@ class Inline:
                 self.ikb(text=lang["channel"], url=config.SUPPORT_CHANNEL),
             ],
         ]
-        if private:
-            rows += [
-                [
-                    self.ikb(
-                        text=lang["source"],
-                        url="https://github.com/AnonymousX1025/AnonXMusic",
-                    )
-                ]
-            ]
-        else:
+        if not private:
             rows += [[self.ikb(text=lang["language"], callback_data="language")]]
         return self.ikm(rows)
 

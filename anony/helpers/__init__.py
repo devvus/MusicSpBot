@@ -1,6 +1,6 @@
-# Copyright (c) 2025 AnonymousX1025
-# Licensed under the MIT License.
-# This file is part of AnonXMusic
+# DevuxMitsu - The Love Hashira Music Bot
+# Premium Telegram Music Streaming Engine
+# Inspired by Mitsuri Kanroji 🌸🌺
 
 
 from ._admins import admin_check, can_manage_vc, is_admin, reload_admins

@@ -1,6 +1,6 @@
-# Copyright (c) 2025 AnonymousX1025
-# Licensed under the MIT License.
-# This file is part of AnonXMusic
+# DevuxMitsu - The Love Hashira Music Bot
+# Premium Telegram Music Streaming Engine
+# Inspired by Mitsuri Kanroji 🌸🌺
 
 
 import re
@@ -128,7 +128,10 @@ async def _controls(_, query: types.CallbackQuery):
 async def _help(_, query: types.CallbackQuery):
     data = query.data.split()
     if len(data) == 1:
-        return await query.answer(url=f"https://t.me/{app.username}?start=help")
+        return await query.edit_message_text(
+            text=query.lang["help_menu"],
+            reply_markup=buttons.help_markup(query.lang),
+        )
 
     if data[1] == "back":
         return await query.edit_message_text(
