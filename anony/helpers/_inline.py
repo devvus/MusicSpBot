@@ -47,7 +47,7 @@ class Inline:
             keyboard.append(
                 [
                     self.ikb(
-                        text="🎁 CLAIM DAILY REWARD",
+                        text="Claim",
                         url=f"https://t.me/{app.username}?start=reward",
                     )
                 ]
