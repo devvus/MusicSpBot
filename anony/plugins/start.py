@@ -3,7 +3,7 @@
 # Inspired by Mitsuri Kanroji 🌸🌺
 
 import asyncio
-from pyrogram import StopPropagation, enums, filters, types
+from pyrogram import enums, filters, types
 
 from anony import app, config, db, lang
 from anony.helpers import buttons, utils
@@ -12,7 +12,6 @@ from anony.helpers import buttons, utils
 @app.on_message(filters.command(["help"]) & filters.private & ~app.bl_users)
 @lang.language()
 async def _help(_, m: types.Message):
-    # For direct /help command in private, we still need to reply
     await m.reply_photo(
         photo=config.START_IMG,
         caption=m.lang["help_menu"],
@@ -56,8 +55,6 @@ async def start(_, message: types.Message):
         await utils.send_log(message, True)
         if not await db.is_chat(message.chat.id):
             await db.add_chat(message.chat.id)
-    
-    raise StopPropagation
 
 
 @app.on_message(filters.command(["playmode", "settings"]) & filters.group & ~app.bl_users)
@@ -73,7 +70,6 @@ async def settings(_, message: types.Message):
         ),
         quote=True,
     )
-    raise StopPropagation
 
 
 @app.on_message(filters.new_chat_members, group=7)
