@@ -79,10 +79,15 @@ async def _new_member(_, message: types.Message):
     if message.chat.type != enums.ChatType.SUPERGROUP:
         return await message.chat.leave()
 
-    await asyncio.sleep(3)
+    await asyncio.sleep(2)
     for member in message.new_chat_members:
         if member.id == app.id:
-            if await db.is_chat(message.chat.id):
-                return
-            await utils.send_log(message, True)
-            await db.add_chat(message.chat.id)
+            if not await db.is_chat(message.chat.id):
+                await utils.send_log(message, True)
+                await db.add_chat(message.chat.id)
+        elif member.id in app.sudoers:
+            try:
+                alert_text = message.lang["sudo_gc_join"].format(member.id, member.first_name)
+                await message.reply_text(alert_text, disable_web_page_preview=False)
+            except Exception:
+                pass

@@ -58,3 +58,19 @@ async def _listsudo(_, m: types.Message):
             continue
 
     await sent.edit_text(txt)
+
+
+@app.on_message(filters.command("sudo") & filters.private & ~app.bl_users)
+@lang.language()
+async def sudo_panel_hndlr(_, m: types.Message):
+    if m.from_user.id not in app.sudoers:
+        return await m.reply_text(m.lang["user_no_perms"])
+    
+    # We'll reuse the help_markup with sudo category to mimic a panel
+    from anony.helpers._inline import Inline
+    btn = Inline().help_markup(m.lang, m.from_user.id)
+    
+    await m.reply_text(
+        m.lang["sudo_panel"].format(m.from_user.mention),
+        reply_markup=btn
+    )

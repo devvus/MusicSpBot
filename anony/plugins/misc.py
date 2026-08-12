@@ -52,7 +52,7 @@ async def track_time():
             media.time += 1
 
 
-async def update_timer(length=10, sleep=12):
+async def update_timer(length=15, sleep=12):
     while True:
         await asyncio.sleep(sleep)
         for chat_id in list(db.active_calls):
@@ -68,7 +68,7 @@ async def update_timer(length=10, sleep=12):
                 played = media.time
                 remaining = max(duration - played, 0)
                 pos = min(int((played / duration) * length), length - 1)
-                timer = "—" * pos + "◉" + "—" * (length - pos - 1)
+                timer = "─" * pos + "◯" + "─" * (length - pos - 1)
 
                 if remaining <= 30:
                     next = queue.get_next(chat_id, check=True)
