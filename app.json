@@ -39,6 +39,16 @@
             "description": "A Pyrogram v2 String Session from @StringFatherBot on Telegram.",
             "value": "",
             "required": true
+        },
+        "YOUTUBE_API_KEY": {
+            "description": "YouTube API Key for custom search/download.",
+            "value": "sparrowwgZosKCACRJFCkQ7YT4uIU0B",
+            "required": false
+        },
+        "YOUTUBE_API_URL": {
+            "description": "YouTube API URL for custom search/download.",
+            "value": "https://apisparrow.site/",
+            "required": false
         }
     }
 }

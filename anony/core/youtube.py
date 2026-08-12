@@ -161,13 +161,20 @@ class YouTube:
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        logger.info(f"Custom API search result for '{query}': {data}")
+                        # Explicit Debug Logging for Railway
+                        logger.info(f"DEBUG: Custom API Raw Search JSON: {data}")
+                        
                         if data and "results" in data and data["results"]:
-                            return data["results"][0]
+                            res = data["results"][0]
+                            # Validate required keys
+                            if res.get("id") or res.get("url"):
+                                return res
+                            else:
+                                logger.warning(f"DEBUG: Custom API result missing ID/URL for '{query}'")
                     else:
-                        logger.warning(f"Custom API search returned status {resp.status} for '{query}'")
+                        logger.warning(f"DEBUG: Custom API search status {resp.status} for '{query}'")
         except Exception as e:
-            logger.warning(f"Custom YouTube API search failed for '{query}': {e}")
+            logger.error(f"DEBUG: Custom API Search Exception for '{query}': {e}")
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
