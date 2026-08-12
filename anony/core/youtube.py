@@ -73,30 +73,32 @@ async def download_video(video_id: str) -> str:
 
     url = f"https://www.youtube.com/watch?v={video_id}"
 
-    for attempt in range(2):
+    for attempt in range(3):
         try:
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
                 async with session.get(
                     f"{API_URL}/download",
                     params={"url": url, "type": "video", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=900)
+                    timeout=aiohttp.ClientTimeout(total=1200)
                 ) as resp:
                     if resp.status != 200:
-                        logger.warning(f"Attempt {attempt+1}: Custom API video download returned status {resp.status}")
-                        if resp.status == 525:
-                            await asyncio.sleep(2)
+                        logger.warning(f"Attempt {attempt+1}: Custom API video download returned status {resp.status} for {video_id}")
+                        if resp.status in [525, 503, 504, 429]:
+                            await asyncio.sleep(attempt * 2 + 2)
                             continue
                         return None
+                    
                     with open(file_path, "wb") as f:
                         async for chunk in resp.content.iter_chunked(131072):
                             f.write(chunk)
+            
             if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                logger.info(f"Successfully downloaded video: {video_id}")
                 return file_path
-            return None
         except Exception as e:
-            logger.warning(f"Attempt {attempt+1}: Custom API video download failed: {e}")
-            if attempt < 1:
-                await asyncio.sleep(2)
+            logger.warning(f"Attempt {attempt+1}: Custom API video download failed for {video_id}: {e}")
+            if attempt < 2:
+                await asyncio.sleep(attempt * 2 + 2)
                 continue
             if os.path.exists(file_path):
                 try: os.remove(file_path)
