@@ -139,7 +139,13 @@ async def _help(_, query: types.CallbackQuery):
                 reply_markup=buttons.help_markup(query.lang, query.from_user.id),
             )
         except Exception:
-            return
+            try:
+                return await query.edit_message_text(
+                    text=query.lang["help_menu"],
+                    reply_markup=buttons.help_markup(query.lang, query.from_user.id),
+                )
+            except Exception:
+                return
 
     if data[1] == "close":
         try:
@@ -164,16 +170,28 @@ async def _help(_, query: types.CallbackQuery):
                 reply_markup=buttons.start_key(query.lang, private),
             )
         except Exception:
-            return
+            try:
+                return await query.edit_message_text(
+                    text=_text,
+                    reply_markup=buttons.start_key(query.lang, private),
+                )
+            except Exception:
+                return
 
     try:
         if data[1] == "sudo" and query.from_user.id not in app.sudoers:
             return await query.answer(query.lang["user_no_perms"], show_alert=True)
             
-        await query.edit_message_caption(
-            caption=query.lang[f"help_{data[1]}"],
-            reply_markup=buttons.help_markup(query.lang, query.from_user.id, True),
-        )
+        try:
+            await query.edit_message_caption(
+                caption=query.lang[f"help_{data[1]}"],
+                reply_markup=buttons.help_markup(query.lang, query.from_user.id, True),
+            )
+        except Exception:
+            await query.edit_message_text(
+                text=query.lang[f"help_{data[1]}"],
+                reply_markup=buttons.help_markup(query.lang, query.from_user.id, True),
+            )
     except Exception:
         pass
 

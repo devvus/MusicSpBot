@@ -22,7 +22,6 @@ def playlist_to_queue(chat_id: int, tracks: list) -> str:
 
 @app.on_message(
     filters.command(["play", "playforce", "vplay", "vplayforce"])
-    & filters.group
     & ~app.bl_users
 )
 @lang.language()
@@ -38,6 +37,9 @@ async def play_hndlr(
     if await db.is_maintenance() and m.from_user.id not in app.sudoers:
         return await m.reply_text(m.lang["sudo_maint_notify"])
     
+    if m.chat.type == enums.ChatType.PRIVATE:
+        return await m.reply_text("🌸 I'm so sorry, but you can only play music in a **Group Chat**! Please add me to a group to start the party! ✨")
+        
     sent = await m.reply_text(m.lang["play_searching"])
     file = None
     mention = m.from_user.mention
