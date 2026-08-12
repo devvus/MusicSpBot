@@ -15,7 +15,7 @@ from anony import app, config, db, lang, userbot
 from anony.plugins import all_modules
 
 
-@app.on_message(filters.command(["stats"]) & filters.group & ~app.bl_users)
+@app.on_message(filters.command(["stats"]) & ~app.bl_users)
 @lang.language()
 async def _stats(_, m: types.Message):
     sent = await m.reply_photo(
@@ -24,13 +24,14 @@ async def _stats(_, m: types.Message):
     )
 
     pid = os.getpid()
+    sudoers = await db.get_sudoers()
     _utext = m.lang["stats_user"].format(
         app.name,
         len(userbot.clients),
         config.AUTO_LEAVE,
         len(db.blacklisted),
         len(app.bl_users),
-        len(app.sudoers),
+        len(sudoers),
         len(await db.get_chats()),
         len(await db.get_users()),
     )
