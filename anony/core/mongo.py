@@ -141,8 +141,10 @@ class MongoDB:
 
     async def get_assistant(self, chat_id: int):
         from anony import anon
+        logger.info(f"DEBUG: get_assistant called for {chat_id}")
 
         if not anon.clients:
+            logger.warning("DEBUG: anon.clients is empty")
             return None
 
         if chat_id not in self.assistant:
@@ -159,13 +161,16 @@ class MongoDB:
             return anon.clients[0]
 
     async def get_client(self, chat_id: int):
+        logger.info(f"DEBUG: get_client called for {chat_id}")
         if not userbot.clients:
+            logger.warning("DEBUG: userbot.clients is empty")
             return None
 
         if chat_id not in self.assistant:
             await self.get_assistant(chat_id)
 
         num = self.assistant.get(chat_id, 1)
+        logger.info(f"DEBUG: assistant num for {chat_id} is {num}")
         if num > len(userbot.clients):
             num = await self.set_assistant(chat_id)
             self.assistant[chat_id] = num

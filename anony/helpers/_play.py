@@ -13,6 +13,7 @@ from anony.helpers import utils
 
 def checkUB(play):
     async def wrapper(_, m: types.Message):
+        logger.info(f"DEBUG: checkUB wrapper called for chat {m.chat.id}")
         if not m.from_user:
             return await m.reply_text(m.lang["play_user_invalid"])
 
@@ -48,9 +49,12 @@ def checkUB(play):
                 return await m.reply_text(m.lang["play_admin"])
 
         if chat_id not in db.active_calls:
+            logger.info(f"DEBUG: chat {chat_id} not in active_calls, fetching client")
             client = await db.get_client(chat_id)
             if not client:
+                logger.warning(f"DEBUG: no client found for chat {chat_id}")
                 return await m.reply_text("🌸 I'm so sorry, but my assistant is currently offline. Please check back in a few minutes! ✨")
+            logger.info(f"DEBUG: client {client.id} found, checking chat membership")
             try:
                 member = await app.get_chat_member(chat_id, client.id)
                 if member.status in [
