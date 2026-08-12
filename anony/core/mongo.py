@@ -120,7 +120,9 @@ class MongoDB:
 
     # ASSISTANT METHODS
     async def set_assistant(self, chat_id: int) -> int:
-        num = randint(1, len(userbot.clients))
+        num = 1
+        if userbot.clients:
+            num = randint(1, len(userbot.clients))
         await self.assistantdb.update_one(
             {"_id": chat_id},
             {"$set": {"num": num}},
