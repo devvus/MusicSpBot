@@ -128,24 +128,23 @@ async def _controls(_, query: types.CallbackQuery):
 async def _help(_, query: types.CallbackQuery):
     data = query.data.split()
     if len(data) == 1:
-        return await query.edit_message_text(
-            text=query.lang["help_menu"],
+        return await query.edit_message_caption(
+            caption=query.lang["help_menu"],
             reply_markup=buttons.help_markup(query.lang),
         )
 
     if data[1] == "back":
-        return await query.edit_message_text(
-            text=query.lang["help_menu"], reply_markup=buttons.help_markup(query.lang)
+        return await query.edit_message_caption(
+            caption=query.lang["help_menu"], reply_markup=buttons.help_markup(query.lang)
         )
     elif data[1] == "close":
         try:
-            await query.message.delete()
-            return await query.message.reply_to_message.delete()
+            return await query.message.delete()
         except Exception:
             return
 
-    await query.edit_message_text(
-        text=query.lang[f"help_{data[1]}"],
+    await query.edit_message_caption(
+        caption=query.lang[f"help_{data[1]}"],
         reply_markup=buttons.help_markup(query.lang, True),
     )
 

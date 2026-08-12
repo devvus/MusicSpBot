@@ -52,14 +52,16 @@ class Inline:
         if back:
             rows = [
                 [
-                    self.ikb(text=_lang["back"], callback_data="help back"),
-                    self.ikb(text=_lang["close"], callback_data="help close"),
+                    self.ikb(text="Back", callback_data="help back"),
+                    self.ikb(text="Close", callback_data="help close"),
                 ]
             ]
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
+            # Minimalist clean button labels
+            labels = ["Admins", "Auth", "Blacklist", "Language", "Ping", "Play", "Queue", "Stats", "Sudoers"]
             buttons = [
-                self.ikb(text=_lang[f"help_{i}"], callback_data=f"help {cb}")
+                self.ikb(text=labels[i], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)
             ]
             rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
@@ -138,18 +140,18 @@ class Inline:
         rows = [
             [
                 self.ikb(
-                    text=lang["add_me"],
+                    text="Add Me",
                     url=f"https://t.me/{app.username}?startgroup=true",
                 )
             ],
-            [self.ikb(text=lang["help"], callback_data="help")],
+            [self.ikb(text="Help", callback_data="help")],
             [
-                self.ikb(text=lang["support"], url=config.SUPPORT_CHAT),
-                self.ikb(text=lang["channel"], url=config.SUPPORT_CHANNEL),
+                self.ikb(text="Support", url=config.SUPPORT_CHAT),
+                self.ikb(text="Channel", url=config.SUPPORT_CHANNEL),
             ],
         ]
         if not private:
-            rows += [[self.ikb(text=lang["language"], callback_data="language")]]
+            rows += [[self.ikb(text="Language", callback_data="language")]]
         return self.ikm(rows)
 
     def yt_key(self, link: str) -> types.InlineKeyboardMarkup:
