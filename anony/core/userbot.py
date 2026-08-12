@@ -38,8 +38,6 @@ class Userbot(Client):
         Args:
             num (int): The client number to boot (1, 2, or 3).
             ub (Client): The userbot client instance.
-        Raises:
-            SystemExit: If the client fails to send a message in the log group.
         """
         clients = {
             1: self.one,
@@ -47,13 +45,18 @@ class Userbot(Client):
             3: self.three,
         }
         client = clients[num]
-        await client.start()
-        client.id = ub.me.id
-        client.name = ub.me.first_name
-        client.username = ub.me.username
-        client.mention = ub.me.mention
-        self.clients.append(client)
-        logger.info(f"Assistant {num} started as @{client.username}")
+        try:
+            await client.start()
+            client.id = ub.me.id
+            client.name = ub.me.first_name
+            client.username = ub.me.username
+            client.mention = ub.me.mention
+            self.clients.append(client)
+            logger.info(f"Assistant {num} started as @{client.username}")
+        except Exception as e:
+            logger.error(f"Assistant {num} failed to start: {e}")
+            # Do not raise SystemExit, let the main bot stay online
+            # We can notify the owner via the main bot later if needed
 
     async def boot(self):
         """
