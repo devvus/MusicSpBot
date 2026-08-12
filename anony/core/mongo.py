@@ -362,8 +362,11 @@ class MongoDB:
         if not doc:
             await self.migrate_coll()
 
-        await self.get_chats()
-        await self.get_users()
-        await self.get_blacklisted(True)
-        await self.get_logger()
+        import asyncio
+        await asyncio.gather(
+            self.get_chats(),
+            self.get_users(),
+            self.get_blacklisted(True),
+            self.get_logger(),
+        )
         logger.info("Database cache loaded.")

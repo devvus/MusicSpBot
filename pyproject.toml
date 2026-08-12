@@ -16,4 +16,5 @@ dependencies = [
     "pytgcrypto>=1.2.11",
     "python-dotenv>=1.0.1",
     "yt-dlp[default]>=2025.02.10",
+    "uvloop>=0.21.0; sys_platform != 'win32'",
 ]
