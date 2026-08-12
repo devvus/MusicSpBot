@@ -31,6 +31,12 @@ class Bot(pyrogram.Client):
         Raises:
             SystemExit: If the bot fails to access the log group or is not an administrator in the logger group.
         """
+        
+        @self.on_message(pyrogram.filters.all, group=-1)
+        async def log_all_messages(_, m):
+            if m.text:
+                logger.info(f"DEBUG: Received message: {m.text} from {m.from_user.id if m.from_user else 'None'} in {m.chat.id}")
+        
         await super().start()
         self.id = self.me.id
         self.name = self.me.first_name
