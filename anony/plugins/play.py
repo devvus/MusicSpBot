@@ -89,7 +89,7 @@ async def play_hndlr(
     if not file:
         return await sent.edit_text(m.lang["play_usage"])
 
-    # Delete user's request message as soon as track is found
+    # Safely delete user's command message once track is found
     try:
         await m.delete()
     except Exception:
@@ -144,11 +144,6 @@ async def play_hndlr(
             await sent.edit_text(m.lang["play_downloading"])
             file.file_path = await yt.download(file.id, video=video)
             logger.info(f"DEBUG: Download result: {file.file_path}")
-
-    try:
-        await m.delete()
-    except:
-        pass
 
     logger.info("DEBUG: Calling play_media")
     await anon.play_media(chat_id=m.chat.id, message=sent, media=file)
