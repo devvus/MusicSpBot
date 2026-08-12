@@ -89,6 +89,12 @@ async def play_hndlr(
     if not file:
         return await sent.edit_text(m.lang["play_usage"])
 
+    # Delete user's request message as soon as track is found
+    try:
+        await m.delete()
+    except Exception:
+        pass
+
     if file.duration_sec > config.DURATION_LIMIT and m.from_user.id not in app.sudoers:
         return await sent.edit_text(
             m.lang["play_duration_limit"].format(config.DURATION_LIMIT // 60)
