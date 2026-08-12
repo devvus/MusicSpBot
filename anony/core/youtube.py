@@ -28,35 +28,50 @@ async def download_song(video_id: str) -> str:
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    if not API_URL:
-        return None
-
     url = f"https://www.youtube.com/watch?v={video_id}"
-    logger.info(f"Downloading audio for: {video_id} via custom API")
+    
+    # Try Custom API First
+    if API_URL:
+        logger.info(f"Attempting Custom API download for: {video_id}")
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+                async with session.get(
+                    f"{API_URL}/download",
+                    params={"url": url, "type": "audio", "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=600)
+                ) as resp:
+                    if resp.status == 200:
+                        with open(file_path, "wb") as f:
+                            async for chunk in resp.content.iter_chunked(131072):
+                                f.write(chunk)
+                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                            logger.info(f"Custom API download successful: {video_id}")
+                            return file_path
+                    else:
+                        logger.warning(f"Custom API returned status {resp.status} for {video_id}")
+        except Exception as e:
+            logger.warning(f"Custom API failed for {video_id}: {e}")
 
+    # Native Fallback (yt-dlp)
+    logger.info(f"Using Native Fallback for: {video_id}")
     try:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-            async with session.get(
-                f"{API_URL}/download",
-                params={"url": url, "type": "audio", "api_key": API_KEY},
-                timeout=aiohttp.ClientTimeout(total=600)
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning(f"Custom API download returned status {resp.status} for {video_id}")
-                    return None
-                with open(file_path, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(131072):
-                        f.write(chunk)
+        import yt_dlp
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": file_path,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            await asyncio.to_thread(ydl.download, [url])
+        
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            logger.info(f"Successfully downloaded audio: {video_id}")
+            logger.info(f"Native download successful: {video_id}")
             return file_path
-        return None
     except Exception as e:
-        logger.warning(f"Custom API audio download failed for {video_id}: {e}")
-        if os.path.exists(file_path):
-            try: os.remove(file_path)
-            except: pass
-        return None
+        logger.error(f"Native download failed for {video_id}: {e}")
+        
+    return None
 
 async def download_video(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -64,35 +79,50 @@ async def download_video(video_id: str) -> str:
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    if not API_URL:
-        return None
-
     url = f"https://www.youtube.com/watch?v={video_id}"
-    logger.info(f"Downloading video for: {video_id} via custom API")
 
+    # Try Custom API First
+    if API_URL:
+        logger.info(f"Attempting Custom API video download for: {video_id}")
+        try:
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+                async with session.get(
+                    f"{API_URL}/download",
+                    params={"url": url, "type": "video", "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=900)
+                ) as resp:
+                    if resp.status == 200:
+                        with open(file_path, "wb") as f:
+                            async for chunk in resp.content.iter_chunked(131072):
+                                f.write(chunk)
+                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                            logger.info(f"Custom API video download successful: {video_id}")
+                            return file_path
+                    else:
+                        logger.warning(f"Custom API returned status {resp.status} for {video_id}")
+        except Exception as e:
+            logger.warning(f"Custom API video failed for {video_id}: {e}")
+
+    # Native Fallback (yt-dlp)
+    logger.info(f"Using Native Fallback for video: {video_id}")
     try:
-        async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-            async with session.get(
-                f"{API_URL}/download",
-                params={"url": url, "type": "video", "api_key": API_KEY},
-                timeout=aiohttp.ClientTimeout(total=900)
-            ) as resp:
-                if resp.status != 200:
-                    logger.warning(f"Custom API video download returned status {resp.status} for {video_id}")
-                    return None
-                with open(file_path, "wb") as f:
-                    async for chunk in resp.content.iter_chunked(131072):
-                        f.write(chunk)
+        import yt_dlp
+        ydl_opts = {
+            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "outtmpl": file_path,
+            "quiet": True,
+            "no_warnings": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            await asyncio.to_thread(ydl.download, [url])
+        
         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            logger.info(f"Successfully downloaded video: {video_id}")
+            logger.info(f"Native video download successful: {video_id}")
             return file_path
-        return None
     except Exception as e:
-        logger.warning(f"Custom API video download failed for {video_id}: {e}")
-        if os.path.exists(file_path):
-            try: os.remove(file_path)
-            except: pass
-        return None
+        logger.error(f"Native video download failed for {video_id}: {e}")
+
+    return None
 
 class YouTube:
     def __init__(self):
