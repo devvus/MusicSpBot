@@ -75,20 +75,11 @@ async def play_hndlr(
     elif len(m.command) >= 2:
         query = " ".join(m.command[1:])
         file = await yt.search(query, sent.id, video=video)
-        
-        # Advanced Fallback: If primary search fails, try lyrics search
+
         if not file:
-            try:
-                await sent.edit_text(m.lang["play_searching_lyrics"])
-            except:
-                pass
-            
-            file = await yt.search(query, sent.id, video=video, lyrics=True)
-            
-            if not file:
-                return await sent.edit_text(
-                    m.lang["play_not_found"].format(config.SUPPORT_CHAT)
-                )
+            return await sent.edit_text(
+                m.lang["play_not_found"].format(config.SUPPORT_CHAT)
+            )
 
     if not file:
         return await sent.edit_text(m.lang["play_usage"])

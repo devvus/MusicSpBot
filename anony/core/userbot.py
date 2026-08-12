@@ -30,7 +30,6 @@ class Userbot(Client):
                     api_id=config.API_ID,
                     api_hash=config.API_HASH,
                     session_string=session,
-                    in_memory=True,
                 ),
             )
 
@@ -48,7 +47,6 @@ class Userbot(Client):
         }
         client = clients[num]
         try:
-            await asyncio.sleep(num * 2) # Small delay to avoid simultaneous login bursts
             await client.start()
             client.id = client.me.id
             client.name = client.me.first_name
