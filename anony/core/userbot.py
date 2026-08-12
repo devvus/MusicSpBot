@@ -48,20 +48,11 @@ class Userbot(Client):
         }
         client = clients[num]
         await client.start()
-        try:
-            await client.send_message(config.LOGGER_ID, "Assistant Started")
-        except Exception:
-            raise SystemExit(f"Assistant {num} failed to send message in log group.")
-
         client.id = ub.me.id
         client.name = ub.me.first_name
         client.username = ub.me.username
         client.mention = ub.me.mention
         self.clients.append(client)
-        try:
-            await ub.join_chat("fallenx")
-        except Exception:
-            pass
         logger.info(f"Assistant {num} started as @{client.username}")
 
     async def boot(self):
