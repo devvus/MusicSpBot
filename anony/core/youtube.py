@@ -61,6 +61,9 @@ async def download_song(video_id: str) -> str:
             "outtmpl": file_path,
             "quiet": True,
             "no_warnings": True,
+            "default_search": "ytsearch",
+            "geo_bypass": True,
+            "nocheckcertificate": True,
         }
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             await asyncio.to_thread(ydl.download, [url])
