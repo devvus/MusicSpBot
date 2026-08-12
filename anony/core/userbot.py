@@ -35,11 +35,6 @@ class Userbot(Client):
     async def boot_client(self, num: int, ub: Client):
         """
         Boot a client and perform initial setup.
-        Args:
-            num (int): The client number to boot (1, 2, or 3).
-            ub (Client): The userbot client instance.
-        Raises:
-            SystemExit: If the client fails to send a message in the log group.
         """
         clients = {
             1: self.one,
@@ -47,22 +42,26 @@ class Userbot(Client):
             3: self.three,
         }
         client = clients[num]
-        await client.start()
         try:
-            await client.send_message(config.LOGGER_ID, "Assistant Started")
-        except Exception:
-            raise SystemExit(f"Assistant {num} failed to send message in log group.")
-
-        client.id = client.me.id
-        client.name = client.me.first_name
-        client.username = client.me.username
-        client.mention = client.me.mention
-        self.clients.append(client)
-        try:
-            await ub.join_chat("fallenx")
-        except Exception:
-            pass
-        logger.info(f"Assistant {num} started as @{client.username}")
+            await client.start()
+            client.id = client.me.id
+            client.name = client.me.first_name
+            client.username = client.me.username
+            client.mention = client.me.mention
+            self.clients.append(client)
+            
+            try:
+                await client.send_message(config.LOGGER_ID, "Assistant Started")
+            except Exception:
+                pass
+                
+            try:
+                await client.join_chat("fallenx")
+            except Exception:
+                pass
+            logger.info(f"Assistant {num} started as @{client.username}")
+        except Exception as e:
+            logger.error(f"Assistant {num} failed to start: {e}")
 
     async def boot(self):
         """
