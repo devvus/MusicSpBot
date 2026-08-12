@@ -34,10 +34,8 @@ class Bot(pyrogram.Client):
         
         @self.on_message(pyrogram.filters.all, group=-100)
         async def log_all_messages(_, m):
-            import os
             if m.text or m.caption:
-                logger.info(f"INSTANCE_LOG [PID:{os.getpid()}]: MsgID:{m.id} | ChatID:{m.chat.id} | Text:{m.text or m.caption}")
-            raise StopPropagation # Testing if stopping here prevents the double response (unlikely but worth a check)
+                logger.info(f"DEBUG: Received message: {m.text} from {m.from_user.id if m.from_user else 'None'} in {m.chat.id}")
         
         await super().start()
         self.id = self.me.id
