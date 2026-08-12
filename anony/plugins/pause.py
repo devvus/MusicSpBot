@@ -13,14 +13,20 @@ from anony.helpers import buttons, can_manage_vc
 @lang.language()
 @can_manage_vc
 async def _pause(_, m: types.Message):
-    if not await db.get_call(m.chat.id):
-        return await m.reply_text(m.lang["not_playing"])
+    try:
+        if not await db.get_call(m.chat.id):
+            return await m.reply_text(m.lang["not_playing"])
 
-    if not await db.playing(m.chat.id):
-        return await m.reply_text(m.lang["play_already_paused"])
+        if not await db.playing(m.chat.id):
+            return await m.reply_text(m.lang["play_already_paused"])
 
-    await anon.pause(m.chat.id)
-    await m.reply_text(
-        text=m.lang["play_paused"].format(m.from_user.mention),
-        reply_markup=buttons.controls(m.chat.id),
-    )
+        await anon.pause(m.chat.id)
+        await m.reply_text(
+            text=m.lang["play_paused"].format(m.from_user.mention),
+            reply_markup=buttons.controls(m.chat.id),
+        )
+    except Exception as e:
+        try:
+            await m.reply_text(m.lang["play_paused"].format(m.from_user.mention))
+        except:
+            pass

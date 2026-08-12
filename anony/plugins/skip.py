@@ -13,8 +13,14 @@ from anony.helpers import can_manage_vc
 @lang.language()
 @can_manage_vc
 async def _skip(_, m: types.Message):
-    if not await db.get_call(m.chat.id):
-        return await m.reply_text(m.lang["not_playing"])
+    try:
+        if not await db.get_call(m.chat.id):
+            return await m.reply_text(m.lang["not_playing"])
 
-    await anon.play_next(m.chat.id)
-    await m.reply_text(m.lang["play_skipped"].format(m.from_user.mention))
+        await anon.play_next(m.chat.id)
+        await m.reply_text(m.lang["play_skipped"].format(m.from_user.mention))
+    except Exception as e:
+        try:
+            await m.reply_text(m.lang["play_skipped"].format(m.from_user.mention))
+        except:
+            pass
