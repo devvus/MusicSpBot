@@ -3,7 +3,7 @@
 # Inspired by Mitsuri Kanroji 🌸🌺
 
 import asyncio
-from pyrogram import enums, filters, types
+from pyrogram import StopPropagation, enums, filters, types
 
 from anony import app, config, db, lang
 from anony.helpers import buttons, utils
@@ -56,6 +56,8 @@ async def start(_, message: types.Message):
         await utils.send_log(message, True)
         if not await db.is_chat(message.chat.id):
             await db.add_chat(message.chat.id)
+    
+    raise StopPropagation
 
 
 @app.on_message(filters.command(["playmode", "settings"]) & filters.group & ~app.bl_users)
@@ -71,6 +73,7 @@ async def settings(_, message: types.Message):
         ),
         quote=True,
     )
+    raise StopPropagation
 
 
 @app.on_message(filters.new_chat_members, group=7)

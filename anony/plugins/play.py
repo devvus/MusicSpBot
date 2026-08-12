@@ -5,7 +5,7 @@
 
 from pathlib import Path
 
-from pyrogram import filters, types, enums
+from pyrogram import StopPropagation, filters, types, enums
 
 from anony import anon, app, config, db, lang, logger, queue, tg, yt
 from anony.helpers import buttons, utils
@@ -147,9 +147,10 @@ async def play_hndlr(
     logger.info("DEBUG: Calling play_media")
     await anon.play_media(chat_id=m.chat.id, message=sent, media=file)
     if not tracks:
-        return
+        raise StopPropagation
     added = playlist_to_queue(m.chat.id, tracks)
     await app.send_message(
         chat_id=m.chat.id,
         text=m.lang["playlist_queued"].format(len(tracks)) + added,
     )
+    raise StopPropagation
