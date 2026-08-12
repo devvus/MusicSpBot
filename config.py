@@ -40,9 +40,9 @@ class Config:
             url for url in getenv("COOKIES_URL", "").split(" ")
             if url and "batbin.me" in url
         ]
-        self.DEFAULT_THUMB = getenv("DEFAULT_THUMB", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/MRxRgPkrhiOyVdSM.png")
-        self.PING_IMG = getenv("PING_IMG", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/BKtipPpZPBhswQje.png")
-        self.START_IMG = getenv("START_IMG", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/FvxnzJaIaRWRWyzq.png")
+        self.DEFAULT_THUMB = getenv("DEFAULT_THUMB", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/qquVThopsglRhEdR.png")
+        self.PING_IMG = getenv("PING_IMG", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/JuKMZGEwcwAPggOQ.png")
+        self.START_IMG = getenv("START_IMG", "https://files.manuscdn.com/user_upload_by_module/session_file/310519663866540879/qquVThopsglRhEdR.png")
 
     def check(self):
         missing = [
