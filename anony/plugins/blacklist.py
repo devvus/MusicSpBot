@@ -6,10 +6,12 @@
 from pyrogram import filters, types
 
 from anony import app, db, lang
+from anony.helpers._admins import sudo_only
 
 
-@app.on_message(filters.command(["blacklist", "unblacklist", "whitelist"]) & app.sudoers)
+@app.on_message(filters.command(["blacklist", "unblacklist", "whitelist"]))
 @lang.language()
+@sudo_only
 async def _blacklist(_, m: types.Message):
     if len(m.command) < 2:
         return await m.reply_text(m.lang["bl_usage"].format(m.command[0]))

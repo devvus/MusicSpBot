@@ -7,10 +7,12 @@ from pyrogram import filters, types
 
 from anony import app, db, lang
 from anony.helpers import utils
+from anony.helpers._admins import owner_only, sudo_only
 
 
-@app.on_message(filters.command(["addsudo", "delsudo", "rmsudo"]) & filters.user(app.owner))
+@app.on_message(filters.command(["addsudo", "delsudo", "rmsudo"]))
 @lang.language()
+@owner_only
 async def _sudo(_, m: types.Message):
     user = await utils.extract_user(m)
     if not user:
@@ -36,6 +38,7 @@ o_mention = None
 
 @app.on_message(filters.command(["listsudo", "sudolist"]))
 @lang.language()
+@sudo_only
 async def _listsudo(_, m: types.Message):
     global o_mention
     sent = await m.reply_text(m.lang["sudo_fetching"])

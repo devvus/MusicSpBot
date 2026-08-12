@@ -69,6 +69,34 @@ def can_manage_vc(func):
     return wrapper
 
 
+def sudo_only(func):
+    @wraps(func)
+    async def wrapper(_, update: types.Message | types.CallbackQuery, *args, **kwargs):
+        user_id = update.from_user.id
+        if user_id not in app.sudoers:
+            if isinstance(update, types.Message):
+                return await update.reply_text(update.lang["user_no_perms"])
+            else:
+                return await update.answer(update.lang["user_no_perms"], show_alert=True)
+        return await func(_, update, *args, **kwargs)
+
+    return wrapper
+
+
+def owner_only(func):
+    @wraps(func)
+    async def wrapper(_, update: types.Message | types.CallbackQuery, *args, **kwargs):
+        user_id = update.from_user.id
+        if user_id != app.owner:
+            if isinstance(update, types.Message):
+                return await update.reply_text(update.lang["user_no_perms"])
+            else:
+                return await update.answer(update.lang["user_no_perms"], show_alert=True)
+        return await func(_, update, *args, **kwargs)
+
+    return wrapper
+
+
 async def is_admin(chat_id: int, user_id: int) -> bool:
     if user_id in await db.get_admins(chat_id):
         return True

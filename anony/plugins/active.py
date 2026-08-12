@@ -8,10 +8,12 @@ import os
 from pyrogram import filters, types
 
 from anony import app, db, lang, queue
+from anony.helpers._admins import sudo_only
 
 
-@app.on_message(filters.command(["ac", "activevc"]) & app.sudoers)
+@app.on_message(filters.command(["ac", "activevc"]))
 @lang.language()
+@sudo_only
 async def _activevc(_, m: types.Message):
     if not db.active_calls:
         return await m.reply_text(m.lang["vc_empty"])

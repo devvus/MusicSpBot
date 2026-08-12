@@ -9,12 +9,14 @@ import asyncio
 from pyrogram import errors, filters, types
 
 from anony import app, db, lang
+from anony.helpers._admins import sudo_only
 
 
 broadcasting = asyncio.Lock()
 
-@app.on_message(filters.command(["broadcast"]) & app.sudoers)
+@app.on_message(filters.command(["broadcast"]))
 @lang.language()
+@sudo_only
 async def _broadcast(_, message: types.Message):
     if not message.reply_to_message:
         return await message.reply_text(message.lang["gcast_usage"])

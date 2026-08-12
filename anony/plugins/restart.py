@@ -11,10 +11,12 @@ import asyncio
 from pyrogram import filters, types
 
 from anony import app, db, lang, stop
+from anony.helpers._admins import sudo_only
 
 
-@app.on_message(filters.command(["logs"]) & app.sudoers)
+@app.on_message(filters.command(["logs"]))
 @lang.language()
+@sudo_only
 async def _logs(_, m: types.Message):
     sent = await m.reply_text(m.lang["log_fetch"])
     if not os.path.exists("log.txt"):
@@ -27,8 +29,9 @@ async def _logs(_, m: types.Message):
     )
 
 
-@app.on_message(filters.command(["logger"]) & app.sudoers)
+@app.on_message(filters.command(["logger"]))
 @lang.language()
+@sudo_only
 async def _logger(_, m: types.Message):
     if len(m.command) < 2:
         return await m.reply_text(m.lang["logger_usage"].format(m.command[0]))
@@ -43,8 +46,9 @@ async def _logger(_, m: types.Message):
         await m.reply_text(m.lang["logger_off"])
 
 
-@app.on_message(filters.command(["restart"]) & app.sudoers)
+@app.on_message(filters.command(["restart"]))
 @lang.language()
+@sudo_only
 async def _restart(_, m: types.Message):
     sent = await m.reply_text(m.lang["restarting"])
 
