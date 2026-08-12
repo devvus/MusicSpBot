@@ -49,7 +49,12 @@ class TgCall(PyTgCalls):
         media: Media | Track,
         seek_time: int = 0,
     ) -> None:
+        logger.info(f"DEBUG: play_media called for chat {chat_id}, title: {media.title}")
         client = await db.get_assistant(chat_id)
+        if not client:
+            logger.error(f"DEBUG: No assistant client found for chat {chat_id}")
+            return await message.edit_text("🌸 Assistant is offline. Please try again later! ✨")
+        
         _lang = await lang.get_lang(chat_id)
         _thumb = (
             await thumb.generate(media)
