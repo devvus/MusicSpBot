@@ -5,7 +5,7 @@
 
 import re
 
-from pyrogram import errors, filters, types
+from pyrogram import enums, errors, filters, types
 
 from anony import anon, app, db, lang, queue, tg, yt
 from anony.helpers import admin_check, buttons, can_manage_vc
@@ -127,26 +127,52 @@ async def _controls(_, query: types.CallbackQuery):
 @lang.language()
 async def _help(_, query: types.CallbackQuery):
     data = query.data.split()
-    if len(data) == 1:
-        return await query.edit_message_caption(
-            caption=query.lang["help_menu"],
-            reply_markup=buttons.help_markup(query.lang),
-        )
+    try:
+        await query.answer()
+    except Exception:
+        pass
 
-    if data[1] == "back":
-        return await query.edit_message_caption(
-            caption=query.lang["help_menu"], reply_markup=buttons.help_markup(query.lang)
-        )
-    elif data[1] == "close":
+    if len(data) == 1 or data[1] == "back":
+        try:
+            return await query.edit_message_caption(
+                caption=query.lang["help_menu"],
+                reply_markup=buttons.help_markup(query.lang),
+            )
+        except Exception:
+            return
+
+    if data[1] == "close":
         try:
             return await query.message.delete()
         except Exception:
             return
 
-    await query.edit_message_caption(
-        caption=query.lang[f"help_{data[1]}"],
-        reply_markup=buttons.help_markup(query.lang, True),
-    )
+    if data[1] == "start":
+        private = query.message.chat.type == enums.ChatType.PRIVATE
+        user_name = query.from_user.first_name
+        user_id = query.from_user.id
+        user_link = f"<a href='tg://user?id={user_id}'>{user_name}</a>"
+        
+        _text = (
+            query.lang["start_pm"].format(user_link)
+            if private
+            else query.lang["start_gp"]
+        )
+        try:
+            return await query.edit_message_caption(
+                caption=_text,
+                reply_markup=buttons.start_key(query.lang, private),
+            )
+        except Exception:
+            return
+
+    try:
+        await query.edit_message_caption(
+            caption=query.lang[f"help_{data[1]}"],
+            reply_markup=buttons.help_markup(query.lang, True),
+        )
+    except Exception:
+        pass
 
 
 @app.on_callback_query(filters.regex("settings") & ~app.bl_users)

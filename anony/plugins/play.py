@@ -85,8 +85,7 @@ async def play_hndlr(
             m.lang["play_duration_limit"].format(config.DURATION_LIMIT // 60)
         )
 
-    if await db.is_logger():
-        await utils.play_log(m, sent.link, file.title, file.duration)
+    await utils.play_log(m, sent.link, file.title, file.duration)
 
     file.user = mention
     if force:

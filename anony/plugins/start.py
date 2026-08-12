@@ -30,10 +30,14 @@ async def start(_, message: types.Message):
         return await _help(_, message)
 
     private = message.chat.type == enums.ChatType.PRIVATE
+    user_name = message.from_user.first_name
+    user_id = message.from_user.id
+    user_link = f"<a href='tg://user?id={user_id}'>{user_name}</a>"
+    
     _text = (
-        message.lang["start_pm"].format(message.from_user.first_name, app.name)
+        message.lang["start_pm"].format(user_link)
         if private
-        else message.lang["start_gp"].format(app.name)
+        else message.lang["start_gp"]
     )
 
     key = buttons.start_key(message.lang, private)
@@ -45,15 +49,13 @@ async def start(_, message: types.Message):
     )
 
     if private:
-        if await db.is_user(message.from_user.id):
-            return
         await utils.send_log(message)
-        await db.add_user(message.from_user.id)
+        if not await db.is_user(message.from_user.id):
+            await db.add_user(message.from_user.id)
     else:
-        if await db.is_chat(message.chat.id):
-            return
         await utils.send_log(message, True)
-        await db.add_chat(message.chat.id)
+        if not await db.is_chat(message.chat.id):
+            await db.add_chat(message.chat.id)
 
 
 @app.on_message(filters.command(["playmode", "settings"]) & filters.group & ~app.bl_users)

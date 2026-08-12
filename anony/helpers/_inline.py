@@ -58,13 +58,13 @@ class Inline:
             ]
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
-            # Minimalist clean button labels
             labels = ["Admins", "Auth", "Blacklist", "Language", "Ping", "Play", "Queue", "Stats", "Sudoers"]
             buttons = [
                 self.ikb(text=labels[i], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)
             ]
             rows = [buttons[i : i + 3] for i in range(0, len(buttons), 3)]
+            rows.append([self.ikb(text="Back", callback_data="help start")])
 
         return self.ikm(rows)
 
