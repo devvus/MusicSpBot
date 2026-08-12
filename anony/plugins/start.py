@@ -35,9 +35,9 @@ async def start(_, message: types.Message):
     user_link = f"<a href='tg://user?id={user_id}'>{user_name}</a>"
     
     _text = (
-        message.lang["start_pm"].format(user_link)
+        message.lang["start_pm"].format(user_link, app.name)
         if private
-        else message.lang["start_gp"]
+        else message.lang["start_gp"].format(app.name)
     )
 
     key = buttons.start_key(message.lang, private)
