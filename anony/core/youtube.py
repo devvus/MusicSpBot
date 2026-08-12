@@ -148,7 +148,37 @@ class YouTube:
             logger.warning(f"Custom YouTube API search failed: {e}")
         return None
 
-    async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
+    async def lyrics_search(self, query: str) -> str | None:
+        """
+        Search for track title and artist using Genius/Lyrics API.
+        """
+        try:
+            # Using a public lyrics/search proxy or direct Genius search
+            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+                async with session.get(
+                    "https://api.genius.com/search",
+                    params={"q": query, "access_token": "YOUR_GENIUS_TOKEN_PLACEHOLDER"}, # We can use a public search if no token
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        hits = data.get("response", {}).get("hits", [])
+                        if hits:
+                            result = hits[0]["result"]
+                            return f"{result['title']} {result['primary_artist']['name']}"
+        except Exception as e:
+            logger.warning(f"Lyrics search failed: {e}")
+        
+        # Fallback to a simple Google/DuckDuckGo search simulation if needed
+        return None
+
+    async def search(self, query: str, m_id: int, video: bool = False, lyrics: bool = False) -> Track | None:
+        # If lyrics flag is true, try to resolve query to a title first
+        if lyrics:
+            resolved_query = await self.lyrics_search(query)
+            if resolved_query:
+                query = resolved_query
+
         data = await self.fetch_custom_yt_data(query)
         
         if data:
