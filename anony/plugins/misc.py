@@ -125,8 +125,8 @@ async def vc_watcher(sleep=15):
                     pass
 
 
-if config.AUTO_END:
-    tasks.append(asyncio.create_task(vc_watcher()))
+# if config.AUTO_END:
+#     tasks.append(asyncio.create_task(vc_watcher()))
 if config.AUTO_LEAVE:
     tasks.append(asyncio.create_task(auto_leave()))
 tasks.append(asyncio.create_task(track_time()))
