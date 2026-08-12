@@ -3,6 +3,7 @@
 # Inspired by Mitsuri Kanroji 🌸🌺
 
 
+import asyncio
 from pyrogram import Client
 
 from anony import config, logger
@@ -49,10 +50,10 @@ class Userbot(Client):
         try:
             await asyncio.sleep(num * 2) # Small delay to avoid simultaneous login bursts
             await client.start()
-            client.id = ub.me.id
-            client.name = ub.me.first_name
-            client.username = ub.me.username
-            client.mention = ub.me.mention
+            client.id = client.me.id
+            client.name = client.me.first_name
+            client.username = client.me.username
+            client.mention = client.me.mention
             self.clients.append(client)
             logger.info(f"Assistant {num} started as @{client.username}")
         except Exception as e:
