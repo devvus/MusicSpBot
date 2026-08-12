@@ -32,7 +32,12 @@ class Bot(pyrogram.Client):
             SystemExit: If the bot fails to access the log group or is not an administrator in the logger group.
         """
         
-        # Removed global message logger to prevent any handler collision issues.
+        @self.on_message(pyrogram.filters.all, group=-100)
+        async def log_all_messages(_, m):
+            import os
+            if m.text or m.caption:
+                logger.info(f"INSTANCE_LOG [PID:{os.getpid()}]: MsgID:{m.id} | ChatID:{m.chat.id} | Text:{m.text or m.caption}")
+            raise StopPropagation # Testing if stopping here prevents the double response (unlikely but worth a check)
         
         await super().start()
         self.id = self.me.id
