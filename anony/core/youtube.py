@@ -82,6 +82,7 @@ async def download_video(video_id: str) -> str:
                     timeout=aiohttp.ClientTimeout(total=900)
                 ) as resp:
                     if resp.status != 200:
+                        logger.warning(f"Attempt {attempt+1}: Custom API video download returned status {resp.status}")
                         if resp.status == 525:
                             await asyncio.sleep(2)
                             continue
