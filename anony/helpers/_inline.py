@@ -53,8 +53,9 @@ class Inline:
             rows = [
                 [
                     self.ikb(text="Back", callback_data="help back"),
-                    self.ikb(text="Close", callback_data="help close"),
-                ]
+                    self.ikb(text="Start", callback_data="help start"),
+                ],
+                [self.ikb(text="Close", callback_data="help close")],
             ]
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
