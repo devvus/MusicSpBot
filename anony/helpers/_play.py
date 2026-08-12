@@ -54,7 +54,8 @@ def checkUB(play):
             client = await db.get_client(chat_id)
             if not client:
                 logger.warning(f"DEBUG: no client found for chat {chat_id}")
-                return await m.reply_text("🌸 I'm so sorry, but my assistant is currently offline. Please check back in a few minutes! ✨")
+                await m.reply_text("🌸 I'm so sorry, but my assistant is currently offline. Please check back in a few minutes! ✨")
+                return None
             logger.info(f"DEBUG: client {client.id} found, checking chat membership")
             try:
                 member = await app.get_chat_member(chat_id, client.id)

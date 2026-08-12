@@ -35,6 +35,7 @@ async def play_hndlr(
     video: bool = False,
     url: str = None,
 ) -> None:
+    if not m or not hasattr(m, "chat"): return
     logger.info(f"DEBUG: play_hndlr started for chat {m.chat.id}")
     if await db.is_maintenance() and m.from_user.id not in app.sudoers:
         return await m.reply_text(m.lang["sudo_maint_notify"])
