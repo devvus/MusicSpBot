@@ -149,6 +149,45 @@ class Inline:
             ]
         )
 
+    def sudo_panel(self, _lang: dict) -> types.InlineKeyboardMarkup:
+        rows = [
+            [
+                self.ikb(text="⚙️ Toggle Maintenance", callback_data="sudo_maint"),
+                self.ikb(text="📢 Broadcast", callback_data="sudo_broadcast"),
+            ],
+            [
+                self.ikb(text="🚫 GBan User", callback_data="sudo_gban"),
+                self.ikb(text="🎙️ VC Control", callback_data="sudo_vc"),
+            ],
+            [
+                self.ikb(text="⚡ Force Play", callback_data="sudo_fplay"),
+                self.ikb(text="🧹 Clean Chat", callback_data="sudo_clean"),
+            ],
+            [
+                self.ikb(text="📊 Bot Stats", callback_data="sudo_stats"),
+                self.ikb(text="🚪 Leave All GC", callback_data="sudo_leave"),
+            ],
+            [
+                self.ikb(text="👑 Manage Sudos", callback_data="sudo_manage"),
+                self.ikb(text="❌ Close", callback_data="sudo_close"),
+            ],
+        ]
+        return self.ikm(rows)
+
+    def sudo_vc_panel(self, _lang: dict) -> types.InlineKeyboardMarkup:
+        rows = [
+            [
+                self.ikb(text="Start VC", callback_data="sudo_vc_start"),
+                self.ikb(text="End VC", callback_data="sudo_vc_end"),
+            ],
+            [
+                self.ikb(text="Mute Bot", callback_data="sudo_vc_mute"),
+                self.ikb(text="Unmute Bot", callback_data="sudo_vc_unmute"),
+            ],
+            [self.ikb(text="Back", callback_data="sudo_back")],
+        ]
+        return self.ikm(rows)
+
     def start_key(
         self, lang: dict, private: bool = False
     ) -> types.InlineKeyboardMarkup:

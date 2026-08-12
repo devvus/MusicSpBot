@@ -28,6 +28,7 @@ class MongoDB:
         self.notified = []
         self.cache = self.db.cache
         self.logger = False
+        self.maintenance = False
 
         self.assistant = {}
         self.assistantdb = self.db.assistant
@@ -259,6 +260,24 @@ class MongoDB:
             upsert=True,
         )
 
+    # MAINTENANCE METHODS
+    async def is_maintenance(self) -> bool:
+        return self.maintenance
+
+    async def get_maintenance(self) -> bool:
+        doc = await self.cache.find_one({"_id": "maintenance"})
+        if doc:
+            self.maintenance = doc["status"]
+        return self.maintenance
+
+    async def set_maintenance(self, status: bool) -> None:
+        self.maintenance = status
+        await self.cache.update_one(
+            {"_id": "maintenance"},
+            {"$set": {"status": status}},
+            upsert=True,
+        )
+
     # PLAY MODE METHODS
     async def get_play_mode(self, chat_id: int) -> bool:
         if chat_id not in self.admin_play:
@@ -366,4 +385,5 @@ class MongoDB:
         await self.get_users()
         await self.get_blacklisted(True)
         await self.get_logger()
+        await self.get_maintenance()
         logger.info("Database cache loaded.")

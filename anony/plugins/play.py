@@ -35,6 +35,9 @@ async def play_hndlr(
     video: bool = False,
     url: str = None,
 ) -> None:
+    if await db.is_maintenance() and m.from_user.id not in app.sudoers:
+        return await m.reply_text(m.lang["sudo_maint_notify"])
+    
     sent = await m.reply_text(m.lang["play_searching"])
     file = None
     mention = m.from_user.mention
