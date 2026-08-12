@@ -53,7 +53,9 @@ class TgCall(PyTgCalls):
         client = await db.get_assistant(chat_id)
         if not client:
             logger.error(f"DEBUG: No assistant client found for chat {chat_id}")
-            return await message.edit_text("🌸 Assistant is offline. Please try again later! ✨")
+            # Silencing ghost error message
+            # return await message.edit_text("🌸 Assistant is offline. Please try again later! ✨")
+            return None
         
         _lang = await lang.get_lang(chat_id)
         _thumb = (
