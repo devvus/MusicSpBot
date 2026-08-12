@@ -1,9 +1,8 @@
-# DevuxMitsu - The Love Hashira Music Bot
-# Premium Telegram Music Streaming Engine
-# Inspired by Mitsuri Kanroji 🌸🌺
+# Copyright (c) 2025 AnonymousX1025
+# Licensed under the MIT License.
+# This file is part of AnonXMusic
 
 
-import asyncio
 from pyrogram import Client
 
 from anony import config, logger
@@ -39,6 +38,8 @@ class Userbot(Client):
         Args:
             num (int): The client number to boot (1, 2, or 3).
             ub (Client): The userbot client instance.
+        Raises:
+            SystemExit: If the client fails to send a message in the log group.
         """
         clients = {
             1: self.one,
@@ -46,18 +47,22 @@ class Userbot(Client):
             3: self.three,
         }
         client = clients[num]
+        await client.start()
         try:
-            await client.start()
-            client.id = client.me.id
-            client.name = client.me.first_name
-            client.username = client.me.username
-            client.mention = client.me.mention
-            self.clients.append(client)
-            logger.info(f"Assistant {num} started as @{client.username}")
-        except Exception as e:
-            logger.error(f"Assistant {num} failed to start: {e}")
-            # Do not raise SystemExit, let the main bot stay online
-            # We can notify the owner via the main bot later if needed
+            await client.send_message(config.LOGGER_ID, "Assistant Started")
+        except Exception:
+            raise SystemExit(f"Assistant {num} failed to send message in log group.")
+
+        client.id = client.me.id
+        client.name = client.me.first_name
+        client.username = client.me.username
+        client.mention = client.me.mention
+        self.clients.append(client)
+        try:
+            await ub.join_chat("fallenx")
+        except Exception:
+            pass
+        logger.info(f"Assistant {num} started as @{client.username}")
 
     async def boot(self):
         """

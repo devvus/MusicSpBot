@@ -1,11 +1,11 @@
-# DevuxMitsu - The Love Hashira Music Bot
-# Premium Telegram Music Streaming Engine
-# Inspired by Mitsuri Kanroji 🌸🌺
+# Copyright (c) 2025 AnonymousX1025
+# Licensed under the MIT License.
+# This file is part of AnonXMusic
 
 
 from pathlib import Path
 
-from pyrogram import filters, types
+from pyrogram import filters, types, enums
 
 from anony import anon, app, config, db, lang, queue, tg, yt
 from anony.helpers import buttons, utils
@@ -22,6 +22,7 @@ def playlist_to_queue(chat_id: int, tracks: list) -> str:
 
 @app.on_message(
     filters.command(["play", "playforce", "vplay", "vplayforce"])
+    & filters.group
     & ~app.bl_users
 )
 @lang.language()
@@ -34,6 +35,9 @@ async def play_hndlr(
     video: bool = False,
     url: str = None,
 ) -> None:
+    if await db.is_maintenance() and m.from_user.id not in app.sudoers:
+        return await m.reply_text(m.lang["sudo_maint_notify"])
+        
     sent = await m.reply_text(m.lang["play_searching"])
     file = None
     mention = m.from_user.mention
@@ -71,7 +75,6 @@ async def play_hndlr(
     elif len(m.command) >= 2:
         query = " ".join(m.command[1:])
         file = await yt.search(query, sent.id, video=video)
-
         if not file:
             return await sent.edit_text(
                 m.lang["play_not_found"].format(config.SUPPORT_CHAT)
@@ -85,7 +88,8 @@ async def play_hndlr(
             m.lang["play_duration_limit"].format(config.DURATION_LIMIT // 60)
         )
 
-    await utils.play_log(m, sent.link, file.title, file.duration)
+    if await db.is_logger():
+        await utils.play_log(m, sent.link, file.title, file.duration)
 
     file.user = mention
     if force:
@@ -115,7 +119,7 @@ async def play_hndlr(
             return
 
     if not file.file_path:
-        fname = f"downloads/{file.id}.{'mp4' if video else 'mp3'}"
+        fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
         if Path(fname).exists():
             file.file_path = fname
         else:

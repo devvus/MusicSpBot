@@ -1,6 +1,6 @@
-# DevuxMitsu - The Love Hashira Music Bot
-# Premium Telegram Music Streaming Engine
-# Inspired by Mitsuri Kanroji 🌸🌺
+# Copyright (c) 2025 AnonymousX1025
+# Licensed under the MIT License.
+# This file is part of AnonXMusic
 
 import os
 import re
@@ -13,6 +13,7 @@ from anony import config, logger
 from anony.helpers import Track, utils
 
 # Custom API settings from MusicSpBot logic
+# Priority: config.py -> MusicSp environment variables -> Default values
 API_URL = config.YOUTUBE_API_URL or os.environ.get("MusicSp_API_URL", "https://apisparrow.site/")
 API_KEY = config.YOUTUBE_API_KEY or os.environ.get("MusicSp_API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
 
@@ -23,6 +24,7 @@ DOWNLOAD_DIR = "downloads"
 
 async def download_song(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    # Using .mp3 as the API seems to return mp3 based on my test
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
@@ -30,37 +32,30 @@ async def download_song(video_id: str) -> str:
     if not API_URL:
         return None
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-
-    for attempt in range(3):
-        try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": url, "type": "audio", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=600)
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning(f"Attempt {attempt+1}: Custom API download returned status {resp.status}")
-                        if resp.status == 525:
-                            await asyncio.sleep(2)
-                            continue
-                        return None
-                    with open(file_path, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(131072):
-                            f.write(chunk)
-            if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                return file_path
-            return None
-        except Exception as e:
-            logger.warning(f"Attempt {attempt+1}: Custom API audio download failed: {e}")
-            if attempt < 2:
-                await asyncio.sleep(2)
-                continue
-            if os.path.exists(file_path):
-                try: os.remove(file_path)
-                except: pass
-    return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=600)
+            ) as resp:
+                if resp.status != 200:
+                    logger.warning(f"Custom API download returned status {resp.status}")
+                    return None
+                with open(file_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(131072):
+                        f.write(chunk)
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            return file_path
+        return None
+    except Exception as e:
+        logger.warning(f"Custom API audio download failed: {e}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        return None
 
 async def download_video(video_id: str) -> str:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -71,39 +66,29 @@ async def download_video(video_id: str) -> str:
     if not API_URL:
         return None
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-
-    for attempt in range(3):
-        try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": url, "type": "video", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=1200)
-                ) as resp:
-                    if resp.status != 200:
-                        logger.warning(f"Attempt {attempt+1}: Custom API video download returned status {resp.status} for {video_id}")
-                        if resp.status in [525, 503, 504, 429]:
-                            await asyncio.sleep(attempt * 2 + 2)
-                            continue
-                        return None
-                    
-                    with open(file_path, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(131072):
-                            f.write(chunk)
-            
-            if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                logger.info(f"Successfully downloaded video: {video_id}")
-                return file_path
-        except Exception as e:
-            logger.warning(f"Attempt {attempt+1}: Custom API video download failed for {video_id}: {e}")
-            if attempt < 2:
-                await asyncio.sleep(attempt * 2 + 2)
-                continue
-            if os.path.exists(file_path):
-                try: os.remove(file_path)
-                except: pass
-    return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "video", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=900)
+            ) as resp:
+                if resp.status != 200:
+                    return None
+                with open(file_path, "wb") as f:
+                    async for chunk in resp.content.iter_chunked(131072):
+                        f.write(chunk)
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            return file_path
+        return None
+    except Exception as e:
+        logger.warning(f"Custom API video download failed: {e}")
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except:
+                pass
+        return None
 
 class YouTube:
     def __init__(self):
@@ -134,7 +119,7 @@ class YouTube:
             return None
         
         try:
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+            async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{API_URL}/search",
                     params={"q": query, "api_key": API_KEY},
@@ -142,6 +127,7 @@ class YouTube:
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
+                        # The API returns "results" (plural)
                         if data and "results" in data and data["results"]:
                             return data["results"][0]
         except Exception as e:
@@ -149,11 +135,12 @@ class YouTube:
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-
+        # Step 5: Primary Search Engine (Custom API)
         data = await self.fetch_custom_yt_data(query)
         
         if data:
             try:
+                # Extract video ID from URL if not present
                 vid_url = data.get("url")
                 vid_id = data.get("id")
                 if not vid_id and vid_url:
@@ -177,6 +164,7 @@ class YouTube:
             except Exception as e:
                 logger.warning(f"Failed to map custom API response: {e}")
 
+        # Step 6: Fallback to native search (py_yt)
         try:
             _search = VideosSearch(query, limit=1, with_live=False)
             results = await _search.next()
@@ -221,6 +209,7 @@ class YouTube:
         return tracks
 
     async def download(self, video_id: str, video: bool = False) -> str | None:
+        # Use custom API logic for downloading
         if video:
             return await download_video(video_id)
         else:

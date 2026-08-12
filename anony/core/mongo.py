@@ -1,6 +1,6 @@
-# DevuxMitsu - The Love Hashira Music Bot
-# Premium Telegram Music Streaming Engine
-# Inspired by Mitsuri Kanroji 🌸🌺
+# Copyright (c) 2025 AnonymousX1025
+# Licensed under the MIT License.
+# This file is part of AnonXMusic
 
 
 from random import randint
@@ -28,7 +28,6 @@ class MongoDB:
         self.notified = []
         self.cache = self.db.cache
         self.logger = False
-        self.maintenance = False
 
         self.assistant = {}
         self.assistantdb = self.db.assistant
@@ -128,8 +127,17 @@ class MongoDB:
             {"$set": {"num": num}},
             upsert=True,
         )
-        self.assistant[chat_id] = num
-        return num
+
+    async def is_maintenance(self) -> bool:
+        res = await self.assistantdb.find_one({"_id": "maintenance"})
+        return res.get("state", False) if res else False
+
+    async def toggle_maintenance(self, state: bool):
+        await self.assistantdb.update_one(
+            {"_id": "maintenance"},
+            {"$set": {"state": state}},
+            upsert=True,
+        )
 
     async def get_assistant(self, chat_id: int):
         from anony import anon
@@ -262,24 +270,6 @@ class MongoDB:
             upsert=True,
         )
 
-    # MAINTENANCE METHODS
-    async def is_maintenance(self) -> bool:
-        return self.maintenance
-
-    async def get_maintenance(self) -> bool:
-        doc = await self.cache.find_one({"_id": "maintenance"})
-        if doc:
-            self.maintenance = doc["status"]
-        return self.maintenance
-
-    async def set_maintenance(self, status: bool) -> None:
-        self.maintenance = status
-        await self.cache.update_one(
-            {"_id": "maintenance"},
-            {"$set": {"status": status}},
-            upsert=True,
-        )
-
     # PLAY MODE METHODS
     async def get_play_mode(self, chat_id: int) -> bool:
         if chat_id not in self.admin_play:
@@ -387,5 +377,4 @@ class MongoDB:
         await self.get_users()
         await self.get_blacklisted(True)
         await self.get_logger()
-        await self.get_maintenance()
         logger.info("Database cache loaded.")
