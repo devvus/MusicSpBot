@@ -49,6 +49,10 @@ def checkUB(play):
                 return await m.reply_text(m.lang["play_admin"])
 
         if chat_id not in db.active_calls:
+            from anony import userbot
+            if not userbot.clients:
+                return await m.reply_text("🌸 I'm so sorry, but my assistant is currently offline. Please check back in a few minutes! ✨")
+            
             client = await db.get_client(chat_id)
             try:
                 member = await app.get_chat_member(chat_id, client.id)
