@@ -3,7 +3,7 @@
 # Inspired by Mitsuri Kanroji 🌸🌺
 
 
-from pyrogram import filters, types
+from pyrogram import StopPropagation, filters, types
 
 from anony import app, db, lang
 from anony.helpers import utils
@@ -58,6 +58,7 @@ async def _listsudo(_, m: types.Message):
             continue
 
     await sent.edit_text(txt)
+    raise StopPropagation
 
 
 @app.on_message(filters.command("sudo") & filters.private & ~app.bl_users)

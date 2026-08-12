@@ -5,7 +5,7 @@
 
 import os
 
-from pyrogram import filters, types
+from pyrogram import StopPropagation, filters, types
 
 from anony import app, db, lang, queue
 from anony.helpers._admins import sudo_only
@@ -19,7 +19,8 @@ async def _activevc(_, m: types.Message):
         return await m.reply_text(m.lang["vc_empty"])
 
     if m.command[0] == "ac":
-        return await m.reply_text(m.lang["vc_count"].format(len(db.active_calls)))
+        await m.reply_text(m.lang["vc_count"].format(len(db.active_calls)))
+        raise StopPropagation
 
     sent = await m.reply_text(m.lang["vc_fetching"])
     text = ""
@@ -29,7 +30,8 @@ async def _activevc(_, m: types.Message):
         text += f"\n{i+1}. <code>{chat}</code>\n    ➜ {playing.title[:25]}"
 
     if len(text) < 4000:
-        return await sent.edit_text(m.lang["vc_list"] + text)
+        await sent.edit_text(m.lang["vc_list"] + text)
+        raise StopPropagation
 
     with open("activevc.txt", "w") as f:
         f.write(text)
@@ -41,3 +43,4 @@ async def _activevc(_, m: types.Message):
         )
     )
     os.remove("activevc.txt")
+    raise StopPropagation

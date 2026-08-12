@@ -6,7 +6,7 @@
 import time
 import psutil
 
-from pyrogram import filters, types
+from pyrogram import StopPropagation, filters, types
 from anony import app, anon, boot, config, lang
 from anony.helpers import buttons
 
@@ -33,3 +33,4 @@ async def _ping(_, m: types.Message):
         ),
         reply_markup=buttons.ping_markup(m.lang["support"]),
     )
+    raise StopPropagation
