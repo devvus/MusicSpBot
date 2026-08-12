@@ -120,8 +120,6 @@ class MongoDB:
 
     # ASSISTANT METHODS
     async def set_assistant(self, chat_id: int) -> int:
-        if not userbot.clients:
-            return 1 # Fallback to 1 even if not started to avoid crash
         num = randint(1, len(userbot.clients))
         await self.assistantdb.update_one(
             {"_id": chat_id},
