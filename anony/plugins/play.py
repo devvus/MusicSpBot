@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pyrogram import filters, types, enums
 
-from anony import anon, app, config, db, lang, queue, tg, yt
+from anony import anon, app, config, db, lang, logger, queue, tg, yt
 from anony.helpers import buttons, utils
 from anony.helpers._play import checkUB
 

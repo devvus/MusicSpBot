@@ -127,6 +127,7 @@ class MongoDB:
             {"$set": {"num": num}},
             upsert=True,
         )
+        return num
 
     async def is_maintenance(self) -> bool:
         res = await self.assistantdb.find_one({"_id": "maintenance"})
