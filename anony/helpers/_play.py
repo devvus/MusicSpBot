@@ -48,6 +48,7 @@ def checkUB(play):
             ):
                 return await m.reply_text(m.lang["play_admin"])
 
+        logger.info(f"DEBUG: active_calls keys: {list(db.active_calls.keys())}")
         if chat_id not in db.active_calls:
             logger.info(f"DEBUG: chat {chat_id} not in active_calls, fetching client")
             client = await db.get_client(chat_id)

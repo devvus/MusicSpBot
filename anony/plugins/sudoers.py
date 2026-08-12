@@ -95,7 +95,7 @@ async def sudo_cb_hndlr(_, query: types.CallbackQuery):
 
     if data == "maint":
         current = await db.is_maintenance()
-        await db.set_maintenance(not current)
+        await db.toggle_maintenance(not current)
         status = query.lang["sudo_maint_off"] if current else query.lang["sudo_maint_on"]
         return await query.answer(status, show_alert=True)
 

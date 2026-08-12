@@ -3,6 +3,7 @@
 # This file is part of AnonXMusic
 
 
+import asyncio
 from random import randint
 from time import time
 
@@ -162,22 +163,31 @@ class MongoDB:
             return anon.clients[0]
 
     async def get_client(self, chat_id: int):
-        logger.info(f"DEBUG: get_client called for {chat_id}")
+        logger.info(f"DEBUG: get_client called for {chat_id}. Available clients: {len(userbot.clients)}")
         if not userbot.clients:
-            logger.warning("DEBUG: userbot.clients is empty")
-            return None
+            logger.warning("DEBUG: userbot.clients is empty, trying to wait 2s")
+            await asyncio.sleep(2)
+            if not userbot.clients:
+                logger.error("DEBUG: userbot.clients still empty after wait")
+                return None
 
         if chat_id not in self.assistant:
             await self.get_assistant(chat_id)
 
         num = self.assistant.get(chat_id, 1)
-        logger.info(f"DEBUG: assistant num for {chat_id} is {num}")
-        if num > len(userbot.clients):
+        if not isinstance(num, int) or num > len(userbot.clients) or num < 1:
+            logger.info(f"DEBUG: invalid assistant num {num}, resetting for {chat_id}")
             num = await self.set_assistant(chat_id)
             self.assistant[chat_id] = num
 
+        logger.info(f"DEBUG: using assistant {num} for {chat_id}")
         client = {1: userbot.one, 2: userbot.two, 3: userbot.three}.get(num)
-        return client if client and client.is_connected else userbot.clients[0]
+        
+        if client and client.is_connected:
+            return client
+        
+        logger.warning(f"DEBUG: assistant {num} not connected, falling back to first available")
+        return userbot.clients[0] if userbot.clients else None
 
     # BLACKLIST METHODS
     async def add_blacklist(self, chat_id: int) -> None:

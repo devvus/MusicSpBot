@@ -62,6 +62,9 @@ class Userbot(Client):
             logger.info(f"Assistant {num} started as @{client.username}")
         except Exception as e:
             logger.error(f"Assistant {num} failed to start: {e}")
+            # Ensure failed client is not in self.clients if it was partially added
+            if client in self.clients:
+                self.clients.remove(client)
 
     async def boot(self):
         """
