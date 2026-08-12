@@ -16,7 +16,7 @@ async def _help(_, m: types.Message):
     await m.reply_photo(
         photo=config.START_IMG,
         caption=m.lang["help_menu"],
-        reply_markup=buttons.help_markup(m.lang),
+        reply_markup=buttons.help_markup(m.lang, user_id=m.from_user.id),
     )
 
 

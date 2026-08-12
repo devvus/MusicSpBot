@@ -47,7 +47,7 @@ class Inline:
         return self.ikm(keyboard)
 
     def help_markup(
-        self, _lang: dict, back: bool = False
+        self, _lang: dict, user_id: int = None, back: bool = False
     ) -> types.InlineKeyboardMarkup:
         if back:
             rows = [
@@ -60,6 +60,12 @@ class Inline:
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
             labels = ["Admins", "Auth", "Blacklist", "Language", "Ping", "Play", "Queue", "Stats", "Sudo"]
+            
+            # Hide sudo button for non-sudoers
+            if user_id not in app.sudoers:
+                cbs.remove("sudo")
+                labels.remove("Sudo")
+                
             buttons = [
                 self.ikb(text=labels[i], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)

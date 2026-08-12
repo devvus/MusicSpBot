@@ -136,7 +136,7 @@ async def _help(_, query: types.CallbackQuery):
         try:
             return await query.edit_message_caption(
                 caption=query.lang["help_menu"],
-                reply_markup=buttons.help_markup(query.lang),
+                reply_markup=buttons.help_markup(query.lang, query.from_user.id),
             )
         except Exception:
             return
@@ -154,9 +154,9 @@ async def _help(_, query: types.CallbackQuery):
         user_link = f"<a href='tg://user?id={user_id}'>{user_name}</a>"
         
         _text = (
-            query.lang["start_pm"].format(user_link)
+            query.lang["start_pm"].format(user_link, app.name)
             if private
-            else query.lang["start_gp"]
+            else query.lang["start_gp"].format(app.name)
         )
         try:
             return await query.edit_message_caption(
@@ -167,9 +167,12 @@ async def _help(_, query: types.CallbackQuery):
             return
 
     try:
+        if data[1] == "sudo" and query.from_user.id not in app.sudoers:
+            return await query.answer(query.lang["user_no_perms"], show_alert=True)
+            
         await query.edit_message_caption(
             caption=query.lang[f"help_{data[1]}"],
-            reply_markup=buttons.help_markup(query.lang, True),
+            reply_markup=buttons.help_markup(query.lang, query.from_user.id, True),
         )
     except Exception:
         pass
