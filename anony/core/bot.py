@@ -47,7 +47,7 @@ class Bot(pyrogram.Client):
 
         if get.status != pyrogram.enums.ChatMemberStatus.ADMINISTRATOR:
             raise SystemExit("Please promote the bot as an admin in logger group.")
-        logger.info(f"Bot started as @{self.username}")
+        logger.info(f"Instance [1786566646] - Bot started as @{self.username}")
 
     async def exit(self):
         """

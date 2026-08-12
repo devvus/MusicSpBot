@@ -59,7 +59,7 @@ class Userbot(Client):
                 await client.join_chat("fallenx")
             except Exception:
                 pass
-            logger.info(f"Assistant {num} started as @{client.username}")
+            logger.info(f"Instance [1786566646] - Assistant {num} started as @{client.username}")
         except Exception as e:
             logger.error(f"Assistant {num} failed to start: {e}")
             # Ensure failed client is not in self.clients if it was partially added
