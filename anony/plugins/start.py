@@ -12,11 +12,17 @@ from anony.helpers import buttons, utils
 @app.on_message(filters.command(["help"]) & filters.private & ~app.bl_users)
 @lang.language()
 async def _help(_, m: types.Message):
-    await m.reply_photo(
-        photo=config.START_IMG,
-        caption=m.lang["help_menu"],
-        reply_markup=buttons.help_markup(m.lang, user_id=m.from_user.id),
-    )
+    try:
+        await m.reply_photo(
+            photo=config.START_IMG,
+            caption=m.lang["help_menu"],
+            reply_markup=buttons.help_markup(m.lang, user_id=m.from_user.id),
+        )
+    except Exception:
+        try:
+            await m.reply_text(m.lang["help_menu"], reply_markup=buttons.help_markup(m.lang, user_id=m.from_user.id))
+        except:
+            pass
 
 
 @app.on_message(filters.command(["start"]))
