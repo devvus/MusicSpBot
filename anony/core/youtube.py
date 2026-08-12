@@ -178,8 +178,21 @@ class YouTube:
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        # Step 5: Primary Search Engine (Custom API)
-        data = await self.fetch_custom_yt_data(query)
+        # Flexible query formatting for lyrics/spelling tolerance
+        queries_to_try = [query]
+        if not query.startswith("http") and len(query.split()) > 0:
+            # Add audio/song qualifiers for better matching if query is short or lyrics-based
+            queries_to_try.append(f"{query} official audio")
+            queries_to_try.append(f"{query} song")
+
+        data = None
+        for q in queries_to_try:
+            try:
+                data = await self.fetch_custom_yt_data(q)
+                if data:
+                    break
+            except Exception:
+                continue
         
         if data:
             try:
