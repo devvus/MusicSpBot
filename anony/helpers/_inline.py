@@ -59,7 +59,7 @@ class Inline:
             ]
         else:
             cbs = ["admins", "auth", "blist", "lang", "ping", "play", "queue", "stats", "sudo"]
-            labels = ["Admins", "Auth", "Blacklist", "Language", "Ping", "Play", "Queue", "Stats", "Sudoers"]
+            labels = ["Admins", "Auth", "Blacklist", "Language", "Ping", "Play", "Queue", "Stats", "Sudo"]
             buttons = [
                 self.ikb(text=labels[i], callback_data=f"help {cb}")
                 for i, cb in enumerate(cbs)
