@@ -1,259 +1,111 @@
-# Copyright (c) 2025 AnonymousX1025
-# Licensed under the MIT License.
-# This file is part of AnonXMusic
-
 import os
 import re
-import asyncio
 import aiohttp
-import yt_dlp
-from pathlib import Path
-from py_yt import Playlist, VideosSearch
-from anony import config, logger
-from anony.helpers import Track, utils
+from typing import Union
+from pyrogram.types import Message
+import config
 
-# Strictly enforce user-provided MusicSp API credentials
-API_URL = "https://apisparrow.site"
-API_KEY = "sparrowwgZosKCACRJFCkQ7YT4uIU0B"
-
-if API_URL:
-    API_URL = API_URL.rstrip("/")
-
-DOWNLOAD_DIR = "downloads"
-
-def seconds_to_min(seconds: int) -> str:
-    if not seconds:
-        return "0:00"
-    m = seconds // 60
-    s = seconds % 60
-    return f"{m}:{s:02d}"
-
-async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
-    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    
-    ydl_opts = {
-        'format': 'bestvideo[ext=mp4]+bestaudio/best' if video else 'bestaudio/best',
-        'outtmpl': os.path.join(DOWNLOAD_DIR, f"{video_id}.%(ext)s"),
-        'quiet': True,
-        'no_warnings': True,
-        'nocheckcertificate': True,
-        'geo_bypass': True,
-        'extractor_args': {"youtube": {"player_client": ["android", "web", "mweb"]}},
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }] if not video else [],
-    }
-
-    loop = asyncio.get_event_loop()
-    try:
-        def _download():
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        
-        await loop.run_in_executor(None, _download)
-        
-        for file in os.listdir(DOWNLOAD_DIR):
-            if file.startswith(video_id):
-                return os.path.join(DOWNLOAD_DIR, file)
-    except Exception as e:
-        logger.warning(f"yt-dlp fallback download failed for {video_id}: {e}")
-    return None
-
-async def download_song(video_id: str) -> str | None:
-    if os.path.exists(DOWNLOAD_DIR):
-        for file in os.listdir(DOWNLOAD_DIR):
-            if file.startswith(video_id):
-                return os.path.join(DOWNLOAD_DIR, file)
-
-    # Step 1: Custom API Download
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_URL}/download",
-                params={"url": video_id, "type": "audio", "api_key": API_KEY},
-                timeout=aiohttp.ClientTimeout(total=60)
-            ) as resp:
-                if resp.status == 200:
-                    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
-                    with open(file_path, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(131072):
-                            f.write(chunk)
-                    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                        return file_path
-    except Exception as e:
-        logger.warning(f"Custom API download failed: {e}")
-
-    return await ytdlp_download(video_id, video=False)
-
-async def download_video(video_id: str) -> str | None:
-    if os.path.exists(DOWNLOAD_DIR):
-        for file in os.listdir(DOWNLOAD_DIR):
-            if file.startswith(video_id) and file.endswith(".mp4"):
-                return os.path.join(DOWNLOAD_DIR, file)
-
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                f"{API_URL}/download",
-                params={"url": video_id, "type": "video", "api_key": API_KEY},
-                timeout=aiohttp.ClientTimeout(total=120)
-            ) as resp:
-                if resp.status == 200:
-                    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp4")
-                    with open(file_path, "wb") as f:
-                        async for chunk in resp.content.iter_chunked(131072):
-                            f.write(chunk)
-                    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                        return file_path
-    except Exception as e:
-        logger.warning(f"Custom API video download failed: {e}")
-
-    return await ytdlp_download(video_id, video=True)
-
-class YouTube:
+class YouTubeAPI:
     def __init__(self):
-        self.base = "https://www.youtube.com/watch?v="
-        self.regex = re.compile(
-            r"(https?://)?(www\.|m\.|music\.)?"
-            r"(youtube\.com/(watch\?v=|shorts/|playlist\?list=)|youtu\.be/)"
-            r"([A-Za-z0-9_-]{11}|PL[A-Za-z0-9_-]+)([&?][^\s]*)?"
-        )
-        self.iregex = re.compile(
-            r"https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)"
-            r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
-            r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
-        )
+        self.base_url = getattr(config, "API_URL", "https://apisparrow.site")
+        self.api_key = getattr(config, "API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
 
-    def valid(self, url: str) -> bool:
-        return bool(re.match(self.regex, url))
+    async def _fetch_api(self, query_or_url: str):
+        """Custom API se response lene ke liye inner function"""
+        if not self.base_url:
+            return None
 
-    async def fetch_custom_yt_data(self, query: str) -> dict | None:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{API_URL}/search",
-                    params={"q": query, "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=10)
-                ) as resp:
+        # Build endpoint URL and params for MusicSp / ApiSparrow
+        endpoint = f"{self.base_url.rstrip('/')}/yt"
+        headers = {
+            "User-Agent": "Mozilla/5.0"
+        }
+        params = {
+            "api_key": self.api_key,
+            "query": query_or_url
+        }
+
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(endpoint, params=params, headers=headers, timeout=20) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        if data and "results" in data and data["results"]:
-                            return data["results"][0]
-        except Exception as e:
-            logger.warning(f"Custom API search failed: {e}")
-        return None
-
-    async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        search_query = query if self.valid(query) else f"{query}"
-
-        # Layer 1: Custom API Search (Direct query)
-        data = await self.fetch_custom_yt_data(search_query)
-        
-        # Layer 1b: Custom API Search with 'song' appended for lyrics/partial names
-        if not data and not self.valid(query):
-            data = await self.fetch_custom_yt_data(f"{search_query} song")
-
-        if data:
-            try:
-                vid_url = data.get("url")
-                vid_id = data.get("id")
-                if not vid_id and vid_url:
-                    vid_id = vid_url.split("v=")[-1].split("&")[0] if "v=" in vid_url else vid_url.split("/")[-1]
-                
-                return Track(
-                    id=vid_id,
-                    channel_name=data.get("channel"),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
-                    message_id=m_id,
-                    title=data.get("title")[:50],
-                    thumbnail=data.get("thumbnail"),
-                    url=vid_url or f"{self.base}{vid_id}",
-                    view_count=data.get("views"),
-                    video=video,
-                )
+                        
+                        # Handle direct result or wrapped response
+                        res = data.get("result") if "result" in data else data
+                        
+                        stream_url = (
+                            res.get("stream_url") or 
+                            res.get("download_url") or 
+                            res.get("url") or 
+                            res.get("link")
+                        )
+                        
+                        return {
+                            "stream_url": stream_url,
+                            "title": res.get("title", "Music Track"),
+                            "duration": int(res.get("duration", 0)),
+                            "thumb": res.get("thumbnail") or res.get("thumb", ""),
+                            "vidid": res.get("id") or res.get("vidid", "custom_id")
+                        }
             except Exception as e:
-                logger.warning(f"Failed to map API response: {e}")
-
-        # Layer 2: Native py_yt VideosSearch Fallback
-        try:
-            _search = VideosSearch(search_query, limit=1, with_live=False)
-            results = await _search.next()
-            if results and results["result"]:
-                rdata = results["result"][0]
-                dur_str = rdata.get("duration", "3:00")
-                return Track(
-                    id=rdata.get("id"),
-                    channel_name=rdata.get("channel", {}).get("name"),
-                    duration=dur_str,
-                    duration_sec=utils.to_seconds(dur_str),
-                    message_id=m_id,
-                    title=rdata.get("title")[:50],
-                    thumbnail=rdata.get("thumbnails", [{}])[-1].get("url").split("?")[0],
-                    url=rdata.get("link"),
-                    view_count=rdata.get("viewCount", {}).get("short"),
-                    video=video,
-                )
-        except Exception as e:
-            logger.warning(f"py_yt search fallback failed: {e}")
-
-        # Layer 3: Native yt-dlp ytsearch Fallback
-        try:
-            loop = asyncio.get_event_loop()
-            def _search():
-                ydl_opts = {'quiet': True, 'extract_flat': True, 'default_search': 'ytsearch'}
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    return ydl.extract_info(f"ytsearch:{search_query}", download=False)
-            
-            info = await loop.run_in_executor(None, _search)
-            if info and "entries" in info and info["entries"]:
-                entry = info["entries"][0]
-                vid_id = entry.get("id")
-                dur = entry.get("duration", 0)
-                return Track(
-                    id=vid_id,
-                    channel_name=entry.get("uploader"),
-                    duration=seconds_to_min(dur),
-                    duration_sec=dur,
-                    message_id=m_id,
-                    title=entry.get("title")[:50],
-                    thumbnail=entry.get("thumbnail"),
-                    url=f"https://www.youtube.com/watch?v={vid_id}",
-                    view_count=str(entry.get("view_count", "")),
-                    video=video,
-                )
-        except Exception as e:
-            logger.warning(f"yt-dlp search fallback failed: {e}")
-
+                print(f"[MusicSp API Error]: {e}")
         return None
 
-    async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
-        tracks = []
-        try:
-            plist = await Playlist.get(url)
-            for data in plist.get("videos", [])[:limit]:
-                track = Track(
-                    id=data.get("id"),
-                    channel_name=data.get("channel", {}).get("name", ""),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
-                    title=data.get("title")[:50],
-                    thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
-                    url=data.get("link", "").split("&list=")[0],
-                    user=user,
-                    view_count="",
-                    video=video,
-                )
-                tracks.append(track)
-        except Exception as e:
-            logger.warning(f"Playlist error: {e}")
-        return tracks
+    async def exists(self, link: str, is_path=False):
+        if is_path:
+            return os.path.exists(link)
+        if re.search(r"(?:youtu\.be\/|youtube\.com\/)", link):
+            return True
+        return False
 
-    async def download(self, video_id: str, video: bool = False) -> str | None:
-        if video:
-            return await download_video(video_id)
-        else:
-            return await download_song(video_id)
+    async def url(self, message: Message) -> Union[str, None]:
+        if message.from_user and message.from_user.is_bot:
+            return None
+        text = message.text or message.caption
+        if text:
+            urls = re.findall(r'(https?://[^\s]+)', text)
+            for u in urls:
+                if await self.exists(u):
+                    return u
+        return None
+
+    async def details(self, link: str, videoid: Union[bool, str] = None):
+        data = await self._fetch_api(link)
+        if data:
+            return data["title"], data["duration"], data["thumb"], data["vidid"]
+        return "Music Track", 0, "", "custom_id"
+
+    async def title(self, link: str, videoid: Union[bool, str] = None):
+        data = await self._fetch_api(link)
+        return data["title"] if data else "Music Track"
+
+    async def duration(self, link: str, videoid: Union[bool, str] = None):
+        data = await self._fetch_api(link)
+        return data["duration"] if data else 0
+
+    async def thumbnail(self, link: str, videoid: Union[bool, str] = None):
+        data = await self._fetch_api(link)
+        return data["thumb"] if data else ""
+
+    async def download(
+        self,
+        link: str,
+        mystic=None,
+        video: Union[bool, str] = None,
+        videoid: Union[bool, str] = None,
+        songaudio: Union[bool, str] = None,
+        songvideo: Union[bool, str] = None,
+        format_id: str = None,
+        title: str = None,
+    ):
+        """Direct stream link retreive karke PyTgCalls ko pass karega"""
+        data = await self._fetch_api(link)
+        if data and data.get("stream_url"):
+            # Direct Stream URL return karega ffmpeg playback ke liye
+            return data["stream_url"], True
+        
+        return None, False
+
+# Export instance for bot compatibility
+YouTube = YouTubeAPI()

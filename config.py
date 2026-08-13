@@ -36,6 +36,10 @@ class Config:
         self.YOUTUBE_API_KEY = getenv("YOUTUBE_API_KEY", "")
         self.YOUTUBE_API_URL = getenv("YOUTUBE_API_URL", "")
 
+        self.API_URL = getenv("MusicSp_API_URL", "https://apisparrow.site")
+        self.API_KEY = getenv("MusicSp_API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
+        self.DOWNLOAD_DIR = "downloads"
+
         # --- Custom YT API Config ---
         self.CUSTOM_YT_API = getenv("CUSTOM_YT_API", "https://apisparrow.site/fetch")
         self.CUSTOM_YT_KEY = getenv("CUSTOM_YT_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
