@@ -13,9 +13,9 @@ from py_yt import Playlist, VideosSearch
 from anony import config, logger
 from anony.helpers import Track, utils
 
-# Custom API settings from MusicSpBot logic
-API_URL = config.YOUTUBE_API_URL or os.environ.get("MusicSp_API_URL", "https://apisparrow.site/")
-API_KEY = config.YOUTUBE_API_KEY or os.environ.get("MusicSp_API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
+# Strictly enforce user-provided MusicSp API credentials
+API_URL = "https://apisparrow.site/"
+API_KEY = "sparrowwgZosKCACRJFCkQ7YT4uIU0B"
 
 if API_URL:
     API_URL = API_URL.rstrip("/")
@@ -38,7 +38,7 @@ async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
         'no_warnings': True,
         'nocheckcertificate': True,
         'geo_bypass': True,
-        'extractor_args': {"youtube": {"player_client": ["android", "web"]}},
+        'extractor_args': {"youtube": {"player_client": ["android", "web", "mweb"]}},
         'postprocessors': [{
             'key': 'FFmpegExtractAudio',
             'preferredcodec': 'mp3',
@@ -64,22 +64,22 @@ async def download_song(video_id: str) -> str | None:
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    if API_URL and API_KEY:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": video_id, "type": "audio", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=60)
-                ) as resp:
-                    if resp.status == 200:
-                        with open(file_path, "wb") as f:
-                            async for chunk in resp.content.iter_chunked(131072):
-                                f.write(chunk)
-                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                            return file_path
-        except Exception as e:
-            logger.warning(f"Custom API download failed: {e}")
+    # Try Custom API First
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=60)
+            ) as resp:
+                if resp.status == 200:
+                    with open(file_path, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(131072):
+                            f.write(chunk)
+                    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                        return file_path
+    except Exception as e:
+        logger.warning(f"Custom API download failed: {e}")
 
     return await ytdlp_download(video_id, video=False)
 
@@ -88,22 +88,21 @@ async def download_video(video_id: str) -> str | None:
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    if API_URL and API_KEY:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{API_URL}/download",
-                    params={"url": video_id, "type": "video", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=120)
-                ) as resp:
-                    if resp.status == 200:
-                        with open(file_path, "wb") as f:
-                            async for chunk in resp.content.iter_chunked(131072):
-                                f.write(chunk)
-                        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-                            return file_path
-        except Exception as e:
-            logger.warning(f"Custom API video download failed: {e}")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "video", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=120)
+            ) as resp:
+                if resp.status == 200:
+                    with open(file_path, "wb") as f:
+                        async for chunk in resp.content.iter_chunked(131072):
+                            f.write(chunk)
+                    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                        return file_path
+    except Exception as e:
+        logger.warning(f"Custom API video download failed: {e}")
 
     return await ytdlp_download(video_id, video=True)
 
@@ -125,8 +124,6 @@ class YouTube:
         return bool(re.match(self.regex, url))
 
     async def fetch_custom_yt_data(self, query: str) -> dict | None:
-        if not API_URL or not API_KEY:
-            return None
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -149,7 +146,6 @@ class YouTube:
         data = await self.fetch_custom_yt_data(search_query)
         
         if not data and not self.valid(query):
-            # Try with 'song' appended
             data = await self.fetch_custom_yt_data(f"{search_query} song")
 
         if data:
@@ -177,7 +173,7 @@ class YouTube:
             except Exception as e:
                 logger.warning(f"Failed to map API response: {e}")
 
-        # Step 2: Native yt-dlp ytsearch fallback (Extremely Reliable)
+        # Step 2: Native yt-dlp ytsearch fallback
         try:
             loop = asyncio.get_event_loop()
             def _search():
