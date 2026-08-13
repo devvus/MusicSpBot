@@ -105,15 +105,19 @@ async def play_hndlr(
         await utils.play_log(m, sent.link, file.title, file.duration)
 
     file.user = mention
-    logger.info(f"DEBUG: Adding to queue (force={force})")
-    if force:
+    
+    # Auto-force for Sudo users or force commands
+    if force or m.from_user.id in app.sudoers:
+        force = True
+        logger.info(f"DEBUG: Force playing for {m.from_user.id}")
         queue.force_add(m.chat.id, file)
     else:
         position = queue.add(m.chat.id, file)
         logger.info(f"DEBUG: Queued at position {position}")
 
-        if position != 0 or await db.get_call(m.chat.id):
-            logger.info("DEBUG: Already playing or queued, editing message")
+        # Only show queued message if it's NOT the first song
+        if position != 0:
+            logger.info("DEBUG: Song queued, editing message")
             await sent.edit_text(
                 m.lang["play_queued"].format(
                     position,

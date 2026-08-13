@@ -39,7 +39,7 @@ async def _controls(_, query: types.CallbackQuery):
 
     if action == "status":
         return await query.answer()
-    await query.answer(query.lang["processing"], show_alert=True)
+    await query.answer() # Instant answer without popup for speed
 
     if action == "pause":
         if not await db.playing(chat_id):
@@ -203,7 +203,7 @@ async def _settings_cb(_, query: types.CallbackQuery):
     cmd = query.data.split()
     if len(cmd) == 1:
         return await query.answer()
-    await query.answer(query.lang["processing"], show_alert=True)
+    await query.answer() # Instant answer without popup for speed
 
     chat_id = query.message.chat.id
     _admin = await db.get_play_mode(chat_id)
