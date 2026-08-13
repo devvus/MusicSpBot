@@ -50,10 +50,8 @@ class Userbot(Client):
             client.mention = client.me.mention
             self.clients.append(client)
             
-            try:
-                await client.send_message(config.LOGGER_ID, "Assistant Started")
-            except Exception:
-                pass
+            # Removed spammy 'Assistant Started' message to LOGGER_ID
+            pass
                 
             # try:
             #     await client.join_chat("fallenx")
