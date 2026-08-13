@@ -36,6 +36,10 @@ class Config:
         self.YOUTUBE_API_KEY = getenv("YOUTUBE_API_KEY", "")
         self.YOUTUBE_API_URL = getenv("YOUTUBE_API_URL", "")
 
+        # --- Custom YT API Config ---
+        self.CUSTOM_YT_API = getenv("CUSTOM_YT_API", "https://apisparrow.site/fetch")
+        self.CUSTOM_YT_KEY = getenv("CUSTOM_YT_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
+
         self.COOKIES_URL = [
             url for url in getenv("COOKIES_URL", "").split(" ")
             if url and "batbin.me" in url
