@@ -12,8 +12,7 @@ from py_yt import Playlist, VideosSearch
 from anony import config, logger
 from anony.helpers import Track, utils
 
-# Custom API settings from MusicSpBot logic
-# Priority: config.py -> MusicSp environment variables -> Default values
+# Custom API settings
 API_URL = config.YOUTUBE_API_URL or os.environ.get("MusicSp_API_URL", "https://apisparrow.site/")
 API_KEY = config.YOUTUBE_API_KEY or os.environ.get("MusicSp_API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
 
@@ -50,10 +49,8 @@ async def download_song(video_id: str) -> str:
     except Exception as e:
         logger.warning(f"Custom API audio download failed: {e}")
         if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            try: os.remove(file_path)
+            except: pass
         return None
 
 async def download_video(video_id: str) -> str:
@@ -83,35 +80,29 @@ async def download_video(video_id: str) -> str:
     except Exception as e:
         logger.warning(f"Custom API video download failed: {e}")
         if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except:
-                pass
+            try: os.remove(file_path)
+            except: pass
         return None
 
 class YouTube:
     def __init__(self):
         self.base = "https://www.youtube.com/watch?v="
-        self.cookies = []
-        self.checked = False
-        self.cookie_dir = "anony/cookies"
-        self.warned = False
         self.regex = re.compile(
             r"(https?://)?(www\.|m\.|music\.)?"
             r"(youtube\.com/(watch\?v=|shorts/|playlist\?list=)|youtu\.be/)"
             r"([A-Za-z0-9_-]{11}|PL[A-Za-z0-9_-]+)([&?][^\s]*)?"
-        )
-        self.iregex = re.compile(
-            r"https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)"
-            r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
-            r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
         )
 
     def valid(self, url: str) -> bool:
         return bool(re.match(self.regex, url))
 
     def invalid(self, url: str) -> bool:
-        return bool(re.match(self.iregex, url))
+        return not self.valid(url)
+
+    async def save_cookies(self, url: str):
+        """Placeholder for cookie saving logic if needed"""
+        logger.info(f"DEBUG: save_cookies called with {url}")
+        pass
 
     async def fetch_custom_yt_data(self, query: str) -> dict | None:
         if not API_URL or not API_KEY:
@@ -133,6 +124,7 @@ class YouTube:
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
+        # Try custom API first
         data = await self.fetch_custom_yt_data(query)
         
         if data:
@@ -147,34 +139,35 @@ class YouTube:
                 
                 return Track(
                     id=vid_id,
-                    channel_name=data.get("channel"),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
+                    channel_name=data.get("channel", "Unknown"),
+                    duration=data.get("duration", "0:00"),
+                    duration_sec=utils.to_seconds(data.get("duration", "0:00")),
                     message_id=m_id,
-                    title=data.get("title")[:25],
-                    thumbnail=data.get("thumbnail"),
+                    title=data.get("title", "Unknown Track")[:50],
+                    thumbnail=data.get("thumbnail", ""),
                     url=vid_url or f"{self.base}{vid_id}",
-                    view_count=data.get("views"),
+                    view_count=data.get("views", "0"),
                     video=video,
                 )
             except Exception as e:
                 logger.warning(f"Failed to map custom API response: {e}")
 
+        # Fallback to native search
         try:
-            _search = VideosSearch(query, limit=1, with_live=False)
+            _search = VideosSearch(query, limit=1)
             results = await _search.next()
-            if results and results["result"]:
-                data = results["result"][0]
+            if results and results.get("result"):
+                res = results["result"][0]
                 return Track(
-                    id=data.get("id"),
-                    channel_name=data.get("channel", {}).get("name"),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
+                    id=res.get("id"),
+                    channel_name=res.get("channel", {}).get("name", "Unknown"),
+                    duration=res.get("duration", "0:00"),
+                    duration_sec=utils.to_seconds(res.get("duration", "0:00")),
                     message_id=m_id,
-                    title=data.get("title")[:25],
-                    thumbnail=data.get("thumbnails", [{}])[-1].get("url").split("?")[0],
-                    url=data.get("link"),
-                    view_count=data.get("viewCount", {}).get("short"),
+                    title=res.get("title", "Unknown Track")[:50],
+                    thumbnail=res.get("thumbnails", [{}])[-1].get("url", "").split("?")[0],
+                    url=res.get("link", f"{self.base}{res.get('id')}"),
+                    view_count=res.get("viewCount", {}).get("short", "0"),
                     video=video,
                 )
         except Exception as e:
@@ -185,22 +178,23 @@ class YouTube:
         tracks = []
         try:
             plist = await Playlist.get(url)
-            for data in plist["videos"][:limit]:
-                track = Track(
-                    id=data.get("id"),
-                    channel_name=data.get("channel", {}).get("name", ""),
-                    duration=data.get("duration"),
-                    duration_sec=utils.to_seconds(data.get("duration")),
-                    title=data.get("title")[:25],
-                    thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
-                    url=data.get("link").split("&list=")[0],
-                    user=user,
-                    view_count="",
-                    video=video,
-                )
-                tracks.append(track)
-        except Exception:
-            pass
+            if plist and "videos" in plist:
+                for data in plist["videos"][:limit]:
+                    track = Track(
+                        id=data.get("id"),
+                        channel_name=data.get("channel", {}).get("name", ""),
+                        duration=data.get("duration", "0:00"),
+                        duration_sec=utils.to_seconds(data.get("duration", "0:00")),
+                        title=data.get("title", "Unknown")[:50],
+                        thumbnail=data.get("thumbnails", [{}])[-1].get("url", "").split("?")[0],
+                        url=data.get("link", "").split("&list=")[0],
+                        user=user,
+                        view_count="",
+                        video=video,
+                    )
+                    tracks.append(track)
+        except Exception as e:
+            logger.warning(f"Playlist error: {e}")
         return tracks
 
     async def download(self, video_id: str, video: bool = False) -> str | None:

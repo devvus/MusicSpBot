@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 # This file is part of AnonXMusic
 
-
+import asyncio
 from ntgcalls import (ConnectionNotFound, TelegramServerError,
                       RTMPStreamingUnsupported, ConnectionError)
 from pyrogram.errors import (ChatSendMediaForbidden, ChatSendPhotosForbidden,
@@ -16,19 +16,29 @@ from anony import (app, config, db, lang, logger,
 from anony.helpers import Media, Track, buttons
 
 
-class TgCall(PyTgCalls):
+class TgCall:
     def __init__(self):
         self.clients = []
 
     async def pause(self, chat_id: int) -> bool:
         client = await db.get_assistant(chat_id)
         await db.playing(chat_id, paused=True)
-        return await client.pause(chat_id)
+        try:
+            if hasattr(client, "pause_stream"):
+                return await client.pause_stream(chat_id)
+            return await client.pause(chat_id)
+        except Exception:
+            return False
 
     async def resume(self, chat_id: int) -> bool:
         client = await db.get_assistant(chat_id)
         await db.playing(chat_id, paused=False)
-        return await client.resume(chat_id)
+        try:
+            if hasattr(client, "resume_stream"):
+                return await client.resume_stream(chat_id)
+            return await client.resume(chat_id)
+        except Exception:
+            return False
 
     async def stop(self, chat_id: int) -> None:
         client = await db.get_assistant(chat_id)
@@ -37,7 +47,10 @@ class TgCall(PyTgCalls):
         await db.set_loop(chat_id, 0)
 
         try:
-            await client.leave_call(chat_id, close=False)
+            if hasattr(client, "leave_group_call"):
+                await client.leave_group_call(chat_id)
+            else:
+                await client.leave_call(chat_id)
         except Exception:
             pass
 
@@ -70,24 +83,41 @@ class TgCall(PyTgCalls):
         if seek_time > 1:
             ffmpeg_params = f"-ss {seek_time}"
 
-        stream = types.MediaStream(
-            media_path=media.file_path,
-            audio_parameters=types.AudioQuality.HIGH,
-            video_parameters=types.VideoQuality.HD_720p,
-            audio_flags=types.MediaStream.Flags.REQUIRED,
-            video_flags=(
-                types.MediaStream.Flags.AUTO_DETECT
-                if media.video
-                else types.MediaStream.Flags.IGNORE
-            ),
-            ffmpeg_parameters=ffmpeg_params,
-        )
+        # Compatibility with different PyTgCalls versions
         try:
-            await client.play(
-                chat_id=chat_id,
-                stream=stream,
-                config=types.GroupCallConfig(auto_start=False),
+            # v2.x and v3.x often use MediaStream
+            stream = types.MediaStream(
+                media_path=media.file_path,
+                audio_parameters=types.AudioQuality.HIGH,
+                video_parameters=types.VideoQuality.HD_720p,
+                audio_flags=types.MediaStream.Flags.REQUIRED,
+                video_flags=(
+                    types.MediaStream.Flags.AUTO_DETECT
+                    if media.video
+                    else types.MediaStream.Flags.IGNORE
+                ),
+                ffmpeg_parameters=ffmpeg_params,
             )
+        except AttributeError:
+            # Fallback for older or different versions
+            stream = media.file_path
+
+        try:
+            # Try play method (common in v2)
+            if hasattr(client, "play"):
+                await client.play(
+                    chat_id=chat_id,
+                    stream=stream,
+                )
+            # Try join_group_call (common in v3)
+            elif hasattr(client, "join_group_call"):
+                await client.join_group_call(
+                    chat_id=chat_id,
+                    stream=stream,
+                )
+            else:
+                raise AttributeError("Client has no play or join_group_call method")
+
             if not seek_time:
                 media.time = 1
                 await db.add_call(chat_id)
@@ -139,6 +169,9 @@ class TgCall(PyTgCalls):
         except RTMPStreamingUnsupported:
             await self.stop(chat_id)
             await message.edit_text(_lang["error_rtmp"])
+        except Exception as e:
+            logger.error(f"Error in play_media: {e}")
+            await message.edit_text(f"🌸 I'm so sorry, but something went wrong while playing! Error: {e}")
 
 
     async def replay(self, chat_id: int) -> None:
@@ -158,6 +191,9 @@ class TgCall(PyTgCalls):
             return await self.replay(chat_id)
 
         media = queue.get_next(chat_id)
+        if not media:
+            return await self.stop(chat_id)
+
         try:
             if media.message_id:
                 await app.delete_messages(
@@ -168,9 +204,6 @@ class TgCall(PyTgCalls):
                 media.message_id = 0
         except Exception:
             pass
-
-        if not media:
-            return await self.stop(chat_id)
 
         _lang = await lang.get_lang(chat_id)
         msg = await app.send_message(chat_id=chat_id, text=_lang["play_next"])
@@ -188,24 +221,29 @@ class TgCall(PyTgCalls):
 
     async def ping(self) -> float:
         pings = [client.ping for client in self.clients]
-        return round(sum(pings) / len(pings), 2)
+        return round(sum(pings) / len(pings), 2) if pings else 0.0
 
 
     async def decorators(self, client: PyTgCalls) -> None:
-        @client.on_update()
-        async def update_handler(_, update: types.Update) -> None:
-            if isinstance(update, types.StreamEnded):
-                logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}, type: {update.stream_type}")
-                if update.stream_type == types.StreamEnded.Type.AUDIO:
-                    await self.play_next(update.chat_id)
-            elif isinstance(update, types.ChatUpdate):
-                logger.info(f"DEBUG: ChatUpdate received for chat {update.chat_id}, status: {update.status}")
-                if update.status in [
-                    types.ChatUpdate.Status.KICKED,
-                    types.ChatUpdate.Status.LEFT_GROUP,
-                    types.ChatUpdate.Status.CLOSED_VOICE_CHAT,
-                ]:
-                    await self.stop(update.chat_id)
+        @client.on_stream_ended()
+        async def stream_ended_handler(_, update: types.Update) -> None:
+            logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}")
+            await self.play_next(update.chat_id)
+
+        @client.on_closed_voice_chat()
+        async def closed_handler(_, update: types.Update) -> None:
+            logger.info(f"DEBUG: ClosedVoiceChat received for chat {update.chat_id}")
+            await self.stop(update.chat_id)
+
+        @client.on_kicked()
+        async def kicked_handler(_, update: types.Update) -> None:
+            logger.info(f"DEBUG: Kicked received for chat {update.chat_id}")
+            await self.stop(update.chat_id)
+
+        @client.on_left_group()
+        async def left_handler(_, update: types.Update) -> None:
+            logger.info(f"DEBUG: LeftGroup received for chat {update.chat_id}")
+            await self.stop(update.chat_id)
 
 
     async def boot(self) -> None:
