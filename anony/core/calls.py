@@ -53,8 +53,6 @@ class TgCall(PyTgCalls):
         client = await db.get_assistant(chat_id)
         if not client:
             logger.error(f"DEBUG: No assistant client found for chat {chat_id}")
-            # Silencing ghost error message
-            # return await message.edit_text("🌸 Assistant is offline. Please try again later! ✨")
             return None
         
         _lang = await lang.get_lang(chat_id)
@@ -68,9 +66,9 @@ class TgCall(PyTgCalls):
             await message.edit_text(_lang["error_no_file"].format(config.SUPPORT_CHAT))
             return await self.play_next(chat_id)
 
-        ffmpeg_params = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+        ffmpeg_params = None
         if seek_time > 1:
-            ffmpeg_params += f" -ss {seek_time}"
+            ffmpeg_params = f"-ss {seek_time}"
 
         stream = types.MediaStream(
             media_path=media.file_path,
@@ -197,9 +195,11 @@ class TgCall(PyTgCalls):
         @client.on_update()
         async def update_handler(_, update: types.Update) -> None:
             if isinstance(update, types.StreamEnded):
+                logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}, type: {update.stream_type}")
                 if update.stream_type == types.StreamEnded.Type.AUDIO:
                     await self.play_next(update.chat_id)
             elif isinstance(update, types.ChatUpdate):
+                logger.info(f"DEBUG: ChatUpdate received for chat {update.chat_id}, status: {update.status}")
                 if update.status in [
                     types.ChatUpdate.Status.KICKED,
                     types.ChatUpdate.Status.LEFT_GROUP,

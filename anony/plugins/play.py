@@ -135,11 +135,17 @@ async def play_hndlr(
             return
 
     if not file.file_path:
-        fname = f"downloads/{file.id}.{'mp4' if video else 'webm'}"
-        if Path(fname).exists():
-            file.file_path = fname
-            logger.info(f"DEBUG: File exists: {fname}")
-        else:
+        # Check for any existing file with this ID
+        found = False
+        if Path("downloads").exists():
+            for f in os.listdir("downloads"):
+                if f.startswith(file.id):
+                    file.file_path = os.path.join("downloads", f)
+                    logger.info(f"DEBUG: File exists: {file.file_path}")
+                    found = True
+                    break
+        
+        if not found:
             logger.info(f"DEBUG: Downloading file: {file.id}")
             await sent.edit_text(m.lang["play_downloading"])
             file.file_path = await yt.download(file.id, video=video)

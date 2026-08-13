@@ -24,12 +24,7 @@ DOWNLOAD_DIR = "downloads"
 
 async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    ext = "mp4" if video else "mp3"
-    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.{ext}")
     
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-        return file_path
-
     url = f"https://www.youtube.com/watch?v={video_id}"
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio/best' if video else 'bestaudio/best',
@@ -39,11 +34,6 @@ async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
         'nocheckcertificate': True,
         'geo_bypass': True,
         'extractor_args': {"youtube": {"player_client": ["android", "web", "mweb"]}},
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }] if not video else [],
     }
 
     loop = asyncio.get_event_loop()
@@ -53,16 +43,21 @@ async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
                 ydl.download([url])
         
         await loop.run_in_executor(None, _download)
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            return file_path
+        
+        # Find the actual file path with its extension
+        for file in os.listdir(DOWNLOAD_DIR):
+            if file.startswith(video_id):
+                return os.path.join(DOWNLOAD_DIR, file)
     except Exception as e:
         logger.warning(f"yt-dlp download failed for {video_id}: {e}")
     return None
 
 async def download_song(video_id: str) -> str | None:
-    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-        return file_path
+    # Check for any existing file with this video_id
+    if os.path.exists(DOWNLOAD_DIR):
+        for file in os.listdir(DOWNLOAD_DIR):
+            if file.startswith(video_id):
+                return os.path.join(DOWNLOAD_DIR, file)
 
     # Try Custom API First
     try:
@@ -73,6 +68,7 @@ async def download_song(video_id: str) -> str | None:
                 timeout=aiohttp.ClientTimeout(total=60)
             ) as resp:
                 if resp.status == 200:
+                    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
                     with open(file_path, "wb") as f:
                         async for chunk in resp.content.iter_chunked(131072):
                             f.write(chunk)
@@ -84,9 +80,10 @@ async def download_song(video_id: str) -> str | None:
     return await ytdlp_download(video_id, video=False)
 
 async def download_video(video_id: str) -> str | None:
-    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp4")
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-        return file_path
+    if os.path.exists(DOWNLOAD_DIR):
+        for file in os.listdir(DOWNLOAD_DIR):
+            if file.startswith(video_id) and file.endswith(".mp4"):
+                return os.path.join(DOWNLOAD_DIR, file)
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -96,6 +93,7 @@ async def download_video(video_id: str) -> str | None:
                 timeout=aiohttp.ClientTimeout(total=120)
             ) as resp:
                 if resp.status == 200:
+                    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp4")
                     with open(file_path, "wb") as f:
                         async for chunk in resp.content.iter_chunked(131072):
                             f.write(chunk)
