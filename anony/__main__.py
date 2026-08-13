@@ -45,7 +45,7 @@ async def main():
     for chat_id in blacklisted:
         app.bl_users.add(chat_id)
         
-    logger.info(f"Loaded {len(app.sudoers)} sudo users.")
+    logger.info(f"Loaded {len(app._sudoers)} sudo users.")
 
     await idle()
     asyncio.create_task(stop())

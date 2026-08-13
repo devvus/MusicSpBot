@@ -7,6 +7,32 @@ from pyrogram import filters
 from anony import config, logger
 
 
+class CustomFilter(filters.Filter):
+    def __init__(self, internal_set):
+        self._set = internal_set
+
+    async def __call__(self, _, __, m):
+        return bool(m.from_user and m.from_user.id in self._set)
+
+    def add(self, item):
+        self._set.add(item)
+
+    def discard(self, item):
+        self._set.discard(item)
+
+    def remove(self, item):
+        self._set.remove(item)
+
+    def __contains__(self, item):
+        return item in self._set
+
+    def __iter__(self):
+        return iter(self._set)
+
+    def __len__(self):
+        return len(self._set)
+
+
 class Bot(pyrogram.Client):
     def __init__(self):
         super().__init__(
@@ -25,14 +51,9 @@ class Bot(pyrogram.Client):
         self._sudoers = {config.OWNER_ID}
         self._bl_users = set()
         
-        # Dynamic filters
-        self.sudoers = filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in self._sudoers))
-        self.bl_users = filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in self._bl_users))
-        
-        # Expose methods and attributes for compatibility
-        for attr in ['add', 'discard', 'remove', '__contains__', '__iter__', '__len__']:
-            setattr(self.sudoers, attr, getattr(self._sudoers, attr))
-            setattr(self.bl_users, attr, getattr(self._bl_users, attr))
+        # Dynamic filters using custom class
+        self.sudoers = CustomFilter(self._sudoers)
+        self.bl_users = CustomFilter(self._bl_users)
 
     async def boot(self):
         """

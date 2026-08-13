@@ -103,13 +103,13 @@ class TgCall:
             stream = media.file_path
 
         try:
-            # Try play method (common in v2)
+            # Try play method (common in v3 and some v2)
             if hasattr(client, "play"):
                 await client.play(
                     chat_id=chat_id,
                     stream=stream,
                 )
-            # Try join_group_call (common in v3)
+            # Try join_group_call (common in v2)
             elif hasattr(client, "join_group_call"):
                 await client.join_group_call(
                     chat_id=chat_id,
@@ -232,25 +232,41 @@ class TgCall:
                 logger.info(f"DEBUG: starting PyTgCalls for assistant {ub.id}")
                 client = PyTgCalls(ub, cache_duration=100)
                 
-                # Handler for stream ended
+                # Handlers
                 async def stream_ended_handler(_, update: types.Update) -> None:
                     logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}")
                     await self.play_next(update.chat_id)
 
-                # Handler for closed voice chat
                 async def closed_handler(_, update: types.Update) -> None:
                     logger.info(f"DEBUG: ClosedVoiceChat received for chat {update.chat_id}")
                     await self.stop(update.chat_id)
 
-                # Check if on_update is available (v3) or use old style
+                # Extremely defensive handler registration
+                registered = False
                 if hasattr(client, "on_update"):
-                    client.on_update()(stream_ended_handler)
-                    client.on_update()(closed_handler)
-                elif hasattr(client, "on_stream_ended"):
-                    client.on_stream_ended()(stream_ended_handler)
-                    client.on_closed_voice_chat()(closed_handler)
-                else:
-                    logger.warning(f"Could not find handler registration methods for assistant {ub.id}")
+                    try:
+                        client.on_update()(stream_ended_handler)
+                        client.on_update()(closed_handler)
+                        registered = True
+                    except Exception:
+                        pass
+                
+                if not registered:
+                    if hasattr(client, "on_stream_ended"):
+                        try:
+                            client.on_stream_ended()(stream_ended_handler)
+                            registered = True
+                        except Exception:
+                            pass
+                    if hasattr(client, "on_closed_voice_chat"):
+                        try:
+                            client.on_closed_voice_chat()(closed_handler)
+                            registered = True
+                        except Exception:
+                            pass
+                
+                if not registered:
+                    logger.warning(f"Could not register any handlers for assistant {ub.id}")
 
                 await client.start()
                 self.clients.append(client)
