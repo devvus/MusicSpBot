@@ -27,8 +27,8 @@ class Bot(pyrogram.Client):
         self._bl_users = set()
         
         # Pyrogram filters that reference these sets
-        self.sudoers = pyrogram.filters.user(self._sudoers)
-        self.bl_users = pyrogram.filters.user(self._bl_users)
+        self.sudoers = pyrogram.filters.user(*self._sudoers)
+        self.bl_users = pyrogram.filters.user(*self._bl_users)
         
         # Patch filter objects to behave like sets for compatibility
         self.sudoers.add = self._sudoers.add
