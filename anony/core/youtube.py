@@ -22,10 +22,11 @@ if API_URL:
 
 DOWNLOAD_DIR = "downloads"
 
+# Optimized yt-dlp downloader for fallback
 async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-    
     url = f"https://www.youtube.com/watch?v={video_id}"
+    
     ydl_opts = {
         'format': 'bestvideo[ext=mp4]+bestaudio/best' if video else 'bestaudio/best',
         'outtmpl': os.path.join(DOWNLOAD_DIR, f"{video_id}.%(ext)s"),
@@ -34,6 +35,11 @@ async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
         'nocheckcertificate': True,
         'geo_bypass': True,
         'extractor_args': {"youtube": {"player_client": ["android", "web", "mweb"]}},
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }] if not video else [],
     }
 
     loop = asyncio.get_event_loop()
@@ -44,22 +50,22 @@ async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
         
         await loop.run_in_executor(None, _download)
         
-        # Find the actual file path with its extension
+        # Check for the downloaded file with its extension
         for file in os.listdir(DOWNLOAD_DIR):
             if file.startswith(video_id):
                 return os.path.join(DOWNLOAD_DIR, file)
     except Exception as e:
-        logger.warning(f"yt-dlp download failed for {video_id}: {e}")
+        logger.warning(f"yt-dlp fallback download failed for {video_id}: {e}")
     return None
 
 async def download_song(video_id: str) -> str | None:
-    # Check for any existing file with this video_id
+    # Check for existing file
     if os.path.exists(DOWNLOAD_DIR):
         for file in os.listdir(DOWNLOAD_DIR):
             if file.startswith(video_id):
                 return os.path.join(DOWNLOAD_DIR, file)
 
-    # Try Custom API First
+    # Step 1: Custom API Download
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -75,8 +81,9 @@ async def download_song(video_id: str) -> str | None:
                     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
                         return file_path
     except Exception as e:
-        logger.warning(f"Custom API download failed: {e}")
+        logger.warning(f"Custom API download failed: {e}. Falling back to yt-dlp...")
 
+    # Step 2: yt-dlp Fallback
     return await ytdlp_download(video_id, video=False)
 
 async def download_video(video_id: str) -> str | None:
@@ -100,7 +107,7 @@ async def download_video(video_id: str) -> str | None:
                     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
                         return file_path
     except Exception as e:
-        logger.warning(f"Custom API video download failed: {e}")
+        logger.warning(f"Custom API video download failed: {e}. Falling back to yt-dlp...")
 
     return await ytdlp_download(video_id, video=True)
 
@@ -138,23 +145,22 @@ class YouTube:
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        search_query = query if self.valid(query) else f"{query}"
+        # Smart search formatting
+        search_query = query if self.valid(query) else f"{query} song lyrics"
 
         # Step 1: Custom API Search
         data = await self.fetch_custom_yt_data(search_query)
         
         if not data and not self.valid(query):
-            data = await self.fetch_custom_yt_data(f"{search_query} song")
+            # Try original query as fallback
+            data = await self.fetch_custom_yt_data(query)
 
         if data:
             try:
                 vid_url = data.get("url")
                 vid_id = data.get("id")
                 if not vid_id and vid_url:
-                    if "v=" in vid_url:
-                        vid_id = vid_url.split("v=")[-1].split("&")[0]
-                    else:
-                        vid_id = vid_url.split("/")[-1]
+                    vid_id = vid_url.split("v=")[-1].split("&")[0] if "v=" in vid_url else vid_url.split("/")[-1]
                 
                 return Track(
                     id=vid_id,
@@ -171,7 +177,7 @@ class YouTube:
             except Exception as e:
                 logger.warning(f"Failed to map API response: {e}")
 
-        # Step 2: Native yt-dlp ytsearch fallback
+        # Step 2: Native yt-dlp ytsearch fallback (Enhanced for Lyrics)
         try:
             loop = asyncio.get_event_loop()
             def _search():
