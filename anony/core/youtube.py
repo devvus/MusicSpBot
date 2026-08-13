@@ -3,12 +3,15 @@ import re
 import aiohttp
 from typing import Union
 from pyrogram.types import Message
-import config
+from anony import config, logger
+from anony.helpers import Track, utils
+from py_yt import Playlist
 
-class YouTubeAPI:
+class YouTube:
     def __init__(self):
         self.base_url = getattr(config, "API_URL", "https://apisparrow.site")
         self.api_key = getattr(config, "API_KEY", "sparrowwgZosKCACRJFCkQ7YT4uIU0B")
+        self.base = "https://www.youtube.com/watch?v="
 
     async def _fetch_api(self, query_or_url: str):
         """Custom API se response lene ke liye inner function"""
@@ -49,7 +52,7 @@ class YouTubeAPI:
                             "vidid": res.get("id") or res.get("vidid", "custom_id")
                         }
             except Exception as e:
-                print(f"[MusicSp API Error]: {e}")
+                logger.warning(f"[MusicSp API Error]: {e}")
         return None
 
     async def exists(self, link: str, is_path=False):
@@ -88,6 +91,45 @@ class YouTubeAPI:
         data = await self._fetch_api(link)
         return data["thumb"] if data else ""
 
+    async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
+        data = await self._fetch_api(query)
+        if data:
+            return Track(
+                id=data["vidid"],
+                channel_name="Custom API",
+                duration=utils.to_min(data["duration"]),
+                duration_sec=data["duration"],
+                message_id=m_id,
+                title=data["title"][:50],
+                thumbnail=data["thumb"],
+                url=f"{self.base}{data['vidid']}" if not data["stream_url"].startswith("http") else data["stream_url"],
+                view_count="0",
+                video=video,
+            )
+        return None
+
+    async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
+        tracks = []
+        try:
+            plist = await Playlist.get(url)
+            for data in plist.get("videos", [])[:limit]:
+                track = Track(
+                    id=data.get("id"),
+                    channel_name=data.get("channel", {}).get("name", ""),
+                    duration=data.get("duration"),
+                    duration_sec=utils.to_seconds(data.get("duration")),
+                    title=data.get("title")[:50],
+                    thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
+                    url=data.get("link", "").split("&list=")[0],
+                    user=user,
+                    view_count="",
+                    video=video,
+                )
+                tracks.append(track)
+        except Exception as e:
+            logger.warning(f"Playlist error: {e}")
+        return tracks
+
     async def download(
         self,
         link: str,
@@ -99,13 +141,10 @@ class YouTubeAPI:
         format_id: str = None,
         title: str = None,
     ):
-        """Direct stream link retreive karke PyTgCalls ko pass karega"""
+        """Direct stream link retrieve karke PyTgCalls ko pass karega"""
         data = await self._fetch_api(link)
         if data and data.get("stream_url"):
             # Direct Stream URL return karega ffmpeg playback ke liye
-            return data["stream_url"], True
+            return data["stream_url"]
         
-        return None, False
-
-# Export instance for bot compatibility
-YouTube = YouTubeAPI()
+        return None
