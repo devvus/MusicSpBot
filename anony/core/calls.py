@@ -5,6 +5,10 @@
 import asyncio
 from ntgcalls import (ConnectionNotFound, TelegramServerError,
                       RTMPStreamingUnsupported, ConnectionError)
+import pyrogram.errors
+if not hasattr(pyrogram.errors, "GroupcallForbidden"):
+    pyrogram.errors.GroupcallForbidden = type("GroupcallForbidden", (Exception,), {})
+
 try:
     from pyrogram.errors import (ChatSendMediaForbidden, ChatSendPhotosForbidden,
                                  MessageIdInvalid)
