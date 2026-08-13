@@ -7,6 +7,7 @@ import re
 import random
 import asyncio
 import aiohttp
+import yt_dlp
 from pathlib import Path
 from py_yt import Playlist, VideosSearch
 from anony import config, logger
@@ -21,22 +22,54 @@ if API_URL:
 
 DOWNLOAD_DIR = "downloads"
 
-async def download_song(video_id: str) -> str:
+# Fallback direct yt-dlp downloader if Custom API fails
+async def ytdlp_download(video_id: str, video: bool = False) -> str | None:
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+    ext = "mp4" if video else "mp3"
+    file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.{ext}")
+    
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    ydl_opts = {
+        'format': 'bestvideo[ext=mp4]+bestaudio/best' if video else 'bestaudio/best',
+        'outtmpl': os.path.join(DOWNLOAD_DIR, f"{video_id}.%(ext)s"),
+        'quiet': True,
+        'no_warnings': True,
+        'nocheckcertificate': True,
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }] if not video else [],
+    }
+
+    loop = asyncio.get_event_loop()
+    try:
+        def _download():
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
+        
+        await loop.run_in_executor(None, _download)
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            return file_path
+    except Exception as e:
+        logger.warning(f"yt-dlp fallback download failed for {video_id}: {e}")
+    return None
+
+async def download_song(video_id: str) -> str | None:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
+    
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    
     # Try Custom API First
-    if API_URL:
+    if API_URL and API_KEY:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{API_URL}/download",
-                    params={"url": url, "type": "audio", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=600)
+                    params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=60)
                 ) as resp:
                     if resp.status == 200:
                         with open(file_path, "wb") as f:
@@ -44,52 +77,26 @@ async def download_song(video_id: str) -> str:
                                 f.write(chunk)
                         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
                             return file_path
-                    else:
-                        logger.warning(f"Custom API download returned status {resp.status}, falling back to yt-dlp")
         except Exception as e:
-            logger.warning(f"Custom API audio download failed: {e}")
+            logger.warning(f"Custom API audio download failed: {e}. Switching to yt-dlp fallback...")
 
-    # Advanced yt-dlp Fallback with bypass options
-    try:
-        import yt_dlp
-        ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": file_path,
-            "quiet": True,
-            "no_warnings": True,
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-            "extractor_args": {"youtube": {"player_client": ["android", "web", "mweb", "ios"]}},
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            }
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            return file_path
-    except Exception as e:
-        logger.error(f"yt-dlp fallback download failed: {e}")
-        if os.path.exists(file_path):
-            try: os.remove(file_path)
-            except: pass
-    return None
+    # Secondary Engine Fallback (Fixes VC Auto-Leave Issue)
+    return await ytdlp_download(video_id, video=False)
 
-async def download_video(video_id: str) -> str:
+async def download_video(video_id: str) -> str | None:
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp4")
+    
     if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
-    url = f"https://www.youtube.com/watch?v={video_id}"
-
-    if API_URL:
+    if API_URL and API_KEY:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{API_URL}/download",
-                    params={"url": url, "type": "video", "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=900)
+                    params={"url": video_id, "type": "video", "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=120)
                 ) as resp:
                     if resp.status == 200:
                         with open(file_path, "wb") as f:
@@ -98,25 +105,10 @@ async def download_video(video_id: str) -> str:
                         if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
                             return file_path
         except Exception as e:
-            logger.warning(f"Custom API video download failed: {e}")
+            logger.warning(f"Custom API video download failed: {e}. Switching to yt-dlp fallback...")
 
-    try:
-        import yt_dlp
-        ydl_opts = {
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-            "outtmpl": file_path,
-            "quiet": True,
-            "no_warnings": True,
-            "geo_bypass": True,
-            "nocheckcertificate": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            await asyncio.to_thread(ydl.download, [url])
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
-            return file_path
-    except Exception as e:
-        logger.error(f"Native video download failed: {e}")
-    return None
+    # Secondary Engine Fallback
+    return await ytdlp_download(video_id, video=True)
 
 class YouTube:
     def __init__(self):
@@ -151,7 +143,7 @@ class YouTube:
                 async with session.get(
                     f"{API_URL}/search",
                     params={"q": query, "api_key": API_KEY},
-                    timeout=aiohttp.ClientTimeout(total=15)
+                    timeout=aiohttp.ClientTimeout(total=10)
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -162,60 +154,12 @@ class YouTube:
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        # Smart search supporting title or partial lyrics via ytsearch fallback
-        queries_to_try = [query]
-        if not query.startswith("http"):
-            if len(query.split()) > 3:
-                queries_to_try.insert(0, f"ytsearch:{query} lyrics")
-                queries_to_try.insert(1, f"{query} song")
-            else:
-                queries_to_try.append(f"{query} song")
+        # Optimized for Lyrics search support
+        search_query = query if self.valid(query) else f"{query} song lyrics"
 
-        data = None
-        for q in queries_to_try:
-            if q.startswith("ytsearch:"):
-                try:
-                    import yt_dlp
-                    ydl_opts = {"quiet": True, "extract_flat": True, "default_search": "ytsearch"}
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        info = await asyncio.to_thread(ydl.extract_info, q, download=False)
-                        if info and "entries" in info and info["entries"]:
-                            entry = info["entries"][0]
-                            data = {
-                                "id": entry.get("id"),
-                                "title": entry.get("title"),
-                                "duration": utils.to_min(entry.get("duration", 0)),
-                                "url": f"https://www.youtube.com/watch?v={entry.get('id')}",
-                                "thumbnail": entry.get("thumbnail"),
-                                "channel": entry.get("uploader"),
-                                "views": str(entry.get("view_count", ""))
-                            }
-                            break
-                except Exception as e:
-                    logger.warning(f"ytsearch failed: {e}")
-            else:
-                data = await self.fetch_custom_yt_data(q)
-                if data:
-                    break
-
-        if not data:
-            try:
-                _search = VideosSearch(query, limit=1, with_live=False)
-                results = await _search.next()
-                if results and results["result"]:
-                    res = results["result"][0]
-                    data = {
-                        "id": res.get("id"),
-                        "title": res.get("title"),
-                        "duration": res.get("duration"),
-                        "url": res.get("link"),
-                        "thumbnail": res.get("thumbnails", [{}])[-1].get("url").split("?")[0],
-                        "channel": res.get("channel", {}).get("name"),
-                        "views": res.get("viewCount", {}).get("short")
-                    }
-            except Exception as e:
-                logger.warning(f"Native search failed: {e}")
-
+        # Step 1: Custom API Search
+        data = await self.fetch_custom_yt_data(search_query)
+        
         if data:
             try:
                 vid_url = data.get("url")
@@ -239,14 +183,35 @@ class YouTube:
                     video=video,
                 )
             except Exception as e:
-                logger.warning(f"Failed to map response: {e}")
+                logger.warning(f"Failed to map custom API response: {e}")
+
+        # Step 2: Native Engine Search Fallback (py_yt)
+        try:
+            _search = VideosSearch(search_query, limit=1, with_live=False)
+            results = await _search.next()
+            if results and results["result"]:
+                data = results["result"][0]
+                return Track(
+                    id=data.get("id"),
+                    channel_name=data.get("channel", {}).get("name"),
+                    duration=data.get("duration"),
+                    duration_sec=utils.to_seconds(data.get("duration")),
+                    message_id=m_id,
+                    title=data.get("title")[:50],
+                    thumbnail=data.get("thumbnails", [{}])[-1].get("url").split("?")[0],
+                    url=data.get("link"),
+                    view_count=data.get("viewCount", {}).get("short"),
+                    video=video,
+                )
+        except Exception as e:
+            logger.warning(f"Native search failed: {e}")
         return None
 
     async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
         tracks = []
         try:
             plist = await Playlist.get(url)
-            for data in plist["videos"][:limit]:
+            for data in plist.get("videos", [])[:limit]:
                 track = Track(
                     id=data.get("id"),
                     channel_name=data.get("channel", {}).get("name", ""),
@@ -254,14 +219,14 @@ class YouTube:
                     duration_sec=utils.to_seconds(data.get("duration")),
                     title=data.get("title")[:50],
                     thumbnail=data.get("thumbnails")[-1].get("url").split("?")[0],
-                    url=data.get("link").split("&list=")[0],
+                    url=data.get("link", "").split("&list=")[0],
                     user=user,
                     view_count="",
                     video=video,
                 )
                 tracks.append(track)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Playlist extraction error: {e}")
         return tracks
 
     async def download(self, video_id: str, video: bool = False) -> str | None:
