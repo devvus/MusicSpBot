@@ -29,29 +29,21 @@ class Bot(pyrogram.Client):
         self.sudoers = filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in self._sudoers))
         self.bl_users = filters.create(lambda _, __, m: bool(m.from_user and m.from_user.id in self._bl_users))
         
-        # Expose add/remove methods for compatibility with plugins
-        self.sudoers.add = self._sudoers.add
-        self.sudoers.discard = self._sudoers.discard
-        self.sudoers.remove = self._sudoers.remove
-        self.sudoers.__contains__ = self._sudoers.__contains__
-        self.sudoers.__iter__ = lambda: iter(self._sudoers)
-        
-        self.bl_users.add = self._bl_users.add
-        self.bl_users.discard = self._bl_users.discard
-        self.bl_users.remove = self._bl_users.remove
-        self.bl_users.__contains__ = self._bl_users.__contains__
-        self.bl_users.__iter__ = lambda: iter(self._bl_users)
+        # Expose methods and attributes for compatibility
+        for attr in ['add', 'discard', 'remove', '__contains__', '__iter__', '__len__']:
+            setattr(self.sudoers, attr, getattr(self._sudoers, attr))
+            setattr(self.bl_users, attr, getattr(self._bl_users, attr))
 
     async def boot(self):
         """
         Starts the bot and performs initial setup.
         """
         
-        # Log all messages for debugging (can be removed later)
+        # Log all messages for debugging
         @self.on_message(filters.all, group=-100)
         async def log_all_messages(_, m):
             if m.text or m.caption:
-                logger.info(f"DEBUG: Received message: {m.text[:50]} from {m.from_user.id if m.from_user else 'None'} in {m.chat.id}")
+                logger.info(f"DEBUG: Received message: {m.text[:50] if m.text else m.caption[:50]} from {m.from_user.id if m.from_user else 'None'} in {m.chat.id}")
         
         await super().start()
         self.id = self.me.id

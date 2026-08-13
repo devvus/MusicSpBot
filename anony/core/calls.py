@@ -224,28 +224,6 @@ class TgCall:
         return round(sum(pings) / len(pings), 2) if pings else 0.0
 
 
-    async def decorators(self, client: PyTgCalls) -> None:
-        @client.on_stream_ended()
-        async def stream_ended_handler(_, update: types.Update) -> None:
-            logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}")
-            await self.play_next(update.chat_id)
-
-        @client.on_closed_voice_chat()
-        async def closed_handler(_, update: types.Update) -> None:
-            logger.info(f"DEBUG: ClosedVoiceChat received for chat {update.chat_id}")
-            await self.stop(update.chat_id)
-
-        @client.on_kicked()
-        async def kicked_handler(_, update: types.Update) -> None:
-            logger.info(f"DEBUG: Kicked received for chat {update.chat_id}")
-            await self.stop(update.chat_id)
-
-        @client.on_left_group()
-        async def left_handler(_, update: types.Update) -> None:
-            logger.info(f"DEBUG: LeftGroup received for chat {update.chat_id}")
-            await self.stop(update.chat_id)
-
-
     async def boot(self) -> None:
         logger.info("DEBUG: anon.boot starting")
         PyTgCallsSession.notice_displayed = True
@@ -253,9 +231,29 @@ class TgCall:
             try:
                 logger.info(f"DEBUG: starting PyTgCalls for assistant {ub.id}")
                 client = PyTgCalls(ub, cache_duration=100)
+                
+                # Handler for stream ended
+                async def stream_ended_handler(_, update: types.Update) -> None:
+                    logger.info(f"DEBUG: StreamEnded received for chat {update.chat_id}")
+                    await self.play_next(update.chat_id)
+
+                # Handler for closed voice chat
+                async def closed_handler(_, update: types.Update) -> None:
+                    logger.info(f"DEBUG: ClosedVoiceChat received for chat {update.chat_id}")
+                    await self.stop(update.chat_id)
+
+                # Check if on_update is available (v3) or use old style
+                if hasattr(client, "on_update"):
+                    client.on_update()(stream_ended_handler)
+                    client.on_update()(closed_handler)
+                elif hasattr(client, "on_stream_ended"):
+                    client.on_stream_ended()(stream_ended_handler)
+                    client.on_closed_voice_chat()(closed_handler)
+                else:
+                    logger.warning(f"Could not find handler registration methods for assistant {ub.id}")
+
                 await client.start()
                 self.clients.append(client)
-                await self.decorators(client)
                 logger.info(f"DEBUG: PyTgCalls for assistant {ub.id} started")
             except Exception as e:
                 logger.error(f"PyTgCalls failed to start for an assistant: {e}")
