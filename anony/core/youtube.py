@@ -149,9 +149,10 @@ class YouTube:
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
         search_query = query if self.valid(query) else f"{query}"
 
-        # Step 1: Custom API Search
+        # Layer 1: Custom API Search (Direct query)
         data = await self.fetch_custom_yt_data(search_query)
         
+        # Layer 1b: Custom API Search with 'song' appended for lyrics/partial names
         if not data and not self.valid(query):
             data = await self.fetch_custom_yt_data(f"{search_query} song")
 
@@ -177,7 +178,29 @@ class YouTube:
             except Exception as e:
                 logger.warning(f"Failed to map API response: {e}")
 
-        # Step 2: Native yt-dlp ytsearch fallback
+        # Layer 2: Native py_yt VideosSearch Fallback
+        try:
+            _search = VideosSearch(search_query, limit=1, with_live=False)
+            results = await _search.next()
+            if results and results["result"]:
+                rdata = results["result"][0]
+                dur_str = rdata.get("duration", "3:00")
+                return Track(
+                    id=rdata.get("id"),
+                    channel_name=rdata.get("channel", {}).get("name"),
+                    duration=dur_str,
+                    duration_sec=utils.to_seconds(dur_str),
+                    message_id=m_id,
+                    title=rdata.get("title")[:50],
+                    thumbnail=rdata.get("thumbnails", [{}])[-1].get("url").split("?")[0],
+                    url=rdata.get("link"),
+                    view_count=rdata.get("viewCount", {}).get("short"),
+                    video=video,
+                )
+        except Exception as e:
+            logger.warning(f"py_yt search fallback failed: {e}")
+
+        # Layer 3: Native yt-dlp ytsearch Fallback
         try:
             loop = asyncio.get_event_loop()
             def _search():
