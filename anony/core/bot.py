@@ -21,8 +21,29 @@ class Bot(pyrogram.Client):
         )
         self.owner = config.OWNER_ID
         self.logger = config.LOGGER_ID
-        self.sudoers = pyrogram.filters.user()
-        self.bl_users = pyrogram.filters.user()
+        
+        # Internal sets for storage
+        self._sudoers = {config.OWNER_ID}
+        self._bl_users = set()
+        
+        # Pyrogram filters that reference these sets
+        self.sudoers = pyrogram.filters.user(self._sudoers)
+        self.bl_users = pyrogram.filters.user(self._bl_users)
+        
+        # Patch filter objects to behave like sets for compatibility
+        self.sudoers.add = self._sudoers.add
+        self.sudoers.discard = self._sudoers.discard
+        self.sudoers.remove = self._sudoers.remove
+        self.sudoers.__contains__ = self._sudoers.__contains__
+        self.sudoers.__iter__ = lambda: iter(self._sudoers)
+        self.sudoers.__len__ = lambda: len(self._sudoers)
+        
+        self.bl_users.add = self._bl_users.add
+        self.bl_users.discard = self._bl_users.discard
+        self.bl_users.remove = self._bl_users.remove
+        self.bl_users.__contains__ = self._bl_users.__contains__
+        self.bl_users.__iter__ = lambda: iter(self._bl_users)
+        self.bl_users.__len__ = lambda: len(self._bl_users)
 
     async def boot(self):
         """

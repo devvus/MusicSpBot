@@ -121,6 +121,9 @@ class YouTube:
     def valid(self, url: str) -> bool:
         return bool(re.match(self.regex, url))
 
+    def invalid(self, url: str) -> bool:
+        return not self.valid(url)
+
     async def url(self, message: Message) -> Union[str, None]:
         if message.from_user and message.from_user.is_bot:
             return None
