@@ -22,7 +22,16 @@ DOWNLOAD_DIR = "downloads"
 
 def time_to_seconds(time):
     stringt = str(time)
+    if not stringt or ":" not in stringt:
+        return 0
     return sum(int(x) * 60 ** i for i, x in enumerate(reversed(stringt.split(":"))))
+
+def seconds_to_min(seconds: int) -> str:
+    if not seconds:
+        return "0:00"
+    m = seconds // 60
+    s = seconds % 60
+    return f"{m}:{s:02d}"
 
 async def download_song(link: str) -> str:
     video_id = link.split("v=")[-1].split("&")[0] if "v=" in link else link
@@ -37,7 +46,7 @@ async def download_song(link: str) -> str:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{API_URL}/yt",
+                f"{API_URL.rstrip('/')}/yt",
                 params={"query": video_id, "type": "audio", "api_key": API_KEY},
                 timeout=aiohttp.ClientTimeout(total=300)
             ) as resp:
@@ -63,11 +72,6 @@ async def download_song(link: str) -> str:
         return None
     except Exception as e:
         logger.warning(f"Download song failed: {e}")
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
         return None
 
 async def download_video(link: str) -> str:
@@ -83,7 +87,7 @@ async def download_video(link: str) -> str:
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
-                f"{API_URL}/yt",
+                f"{API_URL.rstrip('/')}/yt",
                 params={"query": video_id, "type": "video", "api_key": API_KEY},
                 timeout=aiohttp.ClientTimeout(total=600)
             ) as resp:
@@ -109,11 +113,6 @@ async def download_video(link: str) -> str:
         return None
     except Exception as e:
         logger.warning(f"Download video failed: {e}")
-        if os.path.exists(file_path):
-            try:
-                os.remove(file_path)
-            except Exception:
-                pass
         return None
 
 class YouTube:
@@ -124,52 +123,94 @@ class YouTube:
             r"(youtube\.com/(watch\?v=|shorts/|playlist\?list=)|youtu\.be/)"
             r"([A-Za-z0-9_-]{11}|PL[A-Za-z0-9_-]+)([&?][^\s]*)?"
         )
-        self.iregex = re.compile(
-            r"https?://(?:www\.|m\.|music\.)?(?:youtube\.com|youtu\.be)"
-            r"(?!/(watch\?v=[A-Za-z0-9_-]{11}|shorts/[A-Za-z0-9_-]{11}"
-            r"|playlist\?list=PL[A-Za-z0-9_-]+|[A-Za-z0-9_-]{11}))\S*"
-        )
         self.listbase = "https://youtube.com/playlist?list="
 
     def valid(self, url: str) -> bool:
         return bool(re.match(self.regex, url))
 
-    async def url(self, message: Message) -> Union[str, None]:
-        if message.from_user and message.from_user.is_bot:
-            return None
-        text = message.text or message.caption
-        if text:
-            urls = re.findall(r'(https?://[^\s]+)', text)
-            for u in urls:
-                if self.valid(u):
-                    return u
+    async def fetch_custom_yt_data(self, query: str) -> dict | None:
+        # Try /search endpoint first
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{API_URL.rstrip('/')}/search",
+                    params={"q": query, "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        if data and "results" in data and data["results"]:
+                            return data["results"][0]
+        except Exception:
+            pass
+        
+        # Try /yt endpoint as fallback
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{API_URL.rstrip('/')}/yt",
+                    params={"query": query, "api_key": API_KEY},
+                    timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        res = data.get("result", data)
+                        if res and (res.get("id") or res.get("title")):
+                            return res
+        except Exception:
+            pass
         return None
 
     async def search(self, query: str, m_id: int, video: bool = False) -> Track | None:
-        search_query = query if self.valid(query) else f"{query} song lyrics"
+        search_query = query if self.valid(query) else f"{query}"
+
+        # Layer 1: Custom API Search
+        data = await self.fetch_custom_yt_data(search_query)
+        if not data and not self.valid(query):
+            data = await self.fetch_custom_yt_data(f"{search_query} song")
+
+        if data:
+            try:
+                vid_url = data.get("url") or data.get("link")
+                vid_id = data.get("id") or data.get("vidid")
+                if not vid_id and vid_url:
+                    vid_id = vid_url.split("v=")[-1].split("&")[0] if "v=" in vid_url else vid_url.split("/")[-1]
+                
+                return Track(
+                    id=vid_id,
+                    channel_name=data.get("channel", "YouTube"),
+                    duration=data.get("duration", "0:00"),
+                    duration_sec=utils.to_seconds(str(data.get("duration", "0:00"))),
+                    message_id=m_id,
+                    title=data.get("title", "Unknown")[:50],
+                    thumbnail=data.get("thumbnail") or data.get("thumb"),
+                    url=vid_url or f"{self.base}{vid_id}",
+                    view_count=data.get("views", "0"),
+                    video=video,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to map API response: {e}")
+
+        # Layer 2: Native py_yt VideosSearch Fallback
         try:
             results = VideosSearch(search_query, limit=1)
             for result in (await results.next())["result"]:
-                title = result["title"]
-                duration_min = result["duration"]
-                thumbnail = result["thumbnails"][0]["url"].split("?")[0]
-                vidid = result["id"]
-                duration_sec = int(time_to_seconds(duration_min)) if duration_min else 0
-                
+                dur_str = result.get("duration", "0:00")
                 return Track(
-                    id=vidid,
+                    id=result["id"],
                     channel_name=result.get("channel", {}).get("name", "Unknown"),
-                    duration=duration_min,
-                    duration_sec=duration_sec,
+                    duration=dur_str,
+                    duration_sec=int(time_to_seconds(dur_str)),
                     message_id=m_id,
-                    title=title[:50],
-                    thumbnail=thumbnail,
-                    url=f"{self.base}{vidid}",
+                    title=result["title"][:50],
+                    thumbnail=result["thumbnails"][0]["url"].split("?")[0],
+                    url=f"{self.base}{result['id']}",
                     view_count=result.get("viewCount", {}).get("short", "0"),
                     video=video,
                 )
         except Exception as e:
-            logger.warning(f"Search failed: {e}")
+            logger.warning(f"Native search fallback failed: {e}")
+
         return None
 
     async def playlist(self, limit: int, user: str, url: str, video: bool) -> list[Track | None]:
@@ -201,10 +242,13 @@ class YouTube:
         else:
             return await download_song(link)
 
-    # Additional methods from user's code for completeness
-    async def details(self, link: str, videoid: Union[bool, str] = None):
-        if videoid: link = self.base + link
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
-            return result["title"], result["duration"], result["thumbnails"][0]["url"].split("?")[0], result["id"]
-        return "Unknown Track", "0:00", "", "custom_id"
+    async def url(self, message: Message) -> Union[str, None]:
+        if message.from_user and message.from_user.is_bot:
+            return None
+        text = message.text or message.caption
+        if text:
+            urls = re.findall(r'(https?://[^\s]+)', text)
+            for u in urls:
+                if self.valid(u):
+                    return u
+        return None
