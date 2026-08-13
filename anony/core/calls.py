@@ -5,8 +5,13 @@
 import asyncio
 from ntgcalls import (ConnectionNotFound, TelegramServerError,
                       RTMPStreamingUnsupported, ConnectionError)
-from pyrogram.errors import (ChatSendMediaForbidden, ChatSendPhotosForbidden,
-                             MessageIdInvalid)
+try:
+    from pyrogram.errors import (ChatSendMediaForbidden, ChatSendPhotosForbidden,
+                                 MessageIdInvalid)
+except ImportError:
+    from pyrogram.errors import MessageIdInvalid
+    ChatSendMediaForbidden = Exception
+    ChatSendPhotosForbidden = Exception
 from pyrogram.types import InputMediaPhoto, Message
 from pytgcalls import PyTgCalls, exceptions, types
 from pytgcalls.pytgcalls_session import PyTgCallsSession
